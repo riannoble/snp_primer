@@ -37,16 +37,16 @@ require(purrr)
 
 
 #graphing
-library(ggplot2)
-library(hexbin)
-library(patchwork)
-library(plotly)
+require(ggplot2)
+require(hexbin)
+require(patchwork)
+require(plotly)
 
 
 # Bioinformatics
-library(biomaRt)
-library(spgs)
-library(primer3)
+require(biomaRt)
+require(spgs)
+require(primer3)
 
 
 # Deployment
