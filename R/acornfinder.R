@@ -10,6 +10,9 @@
 #   Test Package:              'Ctrl + Shift + T'
 
 
+# library(devtools)
+# install_github("rianoble/acornfinder")
+# library(acornfinder)
 
 
 
@@ -23,30 +26,30 @@
 
 #BiocManager::install("rprimer")
 
-require(rprimer)
+require("rprimer")
 #library(Biostrings)
 
 # Data processing
-require(DT)
-require(dplyr)
-require(tidyverse)
-require(stringi)
-require(stringr)
-require(mosaic)
-require(purrr)
+require("DT")
+require("dplyr")
+require("tidyverse")
+require("stringi")
+require("stringr")
+require("mosaic")
+require("purrr")
 
 
 #graphing
-require(ggplot2)
-require(hexbin)
-require(patchwork)
-require(plotly)
+require("ggplot2")
+require("hexbin")
+require("patchwork")
+require("plotly")
 
 
 # Bioinformatics
-require(biomaRt)
-require(spgs)
-require(primer3)
+require("biomaRt")
+require("spgs")
+require("primer3")
 
 
 # Deployment
