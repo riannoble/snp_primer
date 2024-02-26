@@ -53,10 +53,10 @@ require("primer3")
 
 
 # Deployment
-#library(shinydashboard)
-#library(shiny)
-#library(shinycssloaders)
-#library( shinyWidgets)
+require("shinydashboard")
+require("shiny")
+require("shinycssloaders")
+require("shinyWidgets")
 
 #source("functions.R")
 
