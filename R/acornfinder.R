@@ -10,9 +10,9 @@
 #   Test Package:              'Ctrl + Shift + T'
 
 
-# library(devtools)
-# install_github("rianoble/acornfinder")
-# library(acornfinder)
+library(devtools)
+install_github("rianoble/acornfinder")
+library(acornfinder)
 
 
 
@@ -637,7 +637,7 @@ soulofmultiplex <- function(df, Heterodimer_tm){
 
 
   mart_api <- function(primer,
-                       shift, appendConsole){
+                       shift){
 
     # We will start exploring options 800 bp away from the SNP location upstream and downstream
     center <- 800
@@ -685,7 +685,6 @@ soulofmultiplex <- function(df, Heterodimer_tm){
                              shift)
     df
 
-    appendConsole("Primer generated")
     print("Primer generated")
     return(df)
   }
@@ -726,7 +725,7 @@ soulofmultiplex <- function(df, Heterodimer_tm){
     # Keep only certain amount of candidates
     df[[4]] <- extract_top_n(df[[4]], top)
     df[[5]] <- extract_top_n(df[[5]], top)
-    # Techincal debt
+    # Technical debt
     df <- df[!duplicated(df$snpID), ]
 
 
