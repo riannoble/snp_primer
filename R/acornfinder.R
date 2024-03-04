@@ -53,10 +53,10 @@ require("primer3")
 
 
 # Deployment
-require("shinydashboard")
-require("shiny")
-require("shinycssloaders")
-require("shinyWidgets")
+#require("shinydashboard")
+#require("shiny")
+#require("shinycssloaders")
+#require("shinyWidgets")
 
 #source("functions.R")
 
@@ -384,7 +384,7 @@ extract_substrings_far <- function(string,
 
 
 ## The one that produce all the primers
-all_text_warngling <- function(snp_wrangled,
+all_text_wrangling <- function(snp_wrangled,
                                start_distance,
                                end_distance,
                                center,
@@ -620,44 +620,8 @@ soulofmultiplex <- function(df, Heterodimer_tm){
 #      numericInput(inputId = "hairpin", label = "Max Hairpin (°C)", value = 45),
 #      div(style = "display: none", downloadButton("downloadData", "Download"))
 
-# INPUTS FROM DASHBOARD - TO BE IMPLEMENTED INTO FUNCTIONS
 
-#              HTML('<h1 style="padding-left: 20px; margin: 5px; font-size: 80px;">Acorn Finder</h1>'),
-#              HTML('<h2 style="padding-left: 20px; margin: 5px; font-size: 20px;">Acorn Finder is a comprehensive tool designed for rapid Allel-specific Multiplexing Primer Generation</h2>'),
-#              HTML('<hr style="border-top: 1px solid #ccc; margin-top: 10px; margin-bottom: 10px;">'),
-#              HTML('<h2 style="padding-left: 20px; margin: 5px; font-size: 20px;">1. Enter SNP IDs</h2>'),
-#              div(style = "color: blue; gradient; padding-left: 30px;", textInput(inputId = "primer_list", label = "", value = "rs53576, rs1815739, rs7412, rs429358, rs6152")),
-              # Existing Dashboard content
-#              HTML('<h2 style="padding-left: 20px; margin: 5px; font-size: 20px;">2. Specify Desired Tm (°C)</h2>'),
-#              div(style = "padding-left: 30px;", sliderInput(inputId = "desired_tm", label = "", value = 60, min = 40, max = 80)),
-
-#              HTML('<h2 style="padding-left: 20px; margin: 5px; font-size: 20px;">3. Specify Max Length (bp)</h2>'),
-#              div(style = "padding-left: 30px;", sliderInput(inputId = "shift", label = "", value = 100, min = 100, max = 500)),
-
-#              HTML('<h2 style="padding-left: 20px; margin: 5px; font-size: 20px;">4. Specify Max difference in TM (°C)</h2>'),
-#              div(style = "padding-left: 30px;", sliderInput(inputId = "diff", label = "", value = 5, min = 0, max = 10)),
-
-#              HTML('<h2 style="padding-left: 20px; margin: 5px; font-size: 20px;">5. Adjust other filters as needed</h2>'),
-#              div(style = "padding-left: 30px;", actionButton("run_button", "Run Analysis", icon = icon("play"))),
-
-              # verbatimTextOutput("consoleOutput"),
-#              HTML('<h2 style="padding-left: 20px; margin: 5px; font-size: 20px;">6. This table shows how many primers we are using from each SNP to perform multiplexing</h2>'),
-#              div(style = "padding-left: 30px;",
-#                  column(
-#                    withSpinner(DT::dataTableOutput(outputId = "primer_table")),
-#                    width = 12
-#                  )
-#              ),
-#              HTML('<h2 style="padding-left: 20px; margin: 5px; font-size: 20px;">7. Final result</h2>'),
-#              div(style = "padding-left: 30px;",
-#                  withSpinner(DT::dataTableOutput(outputId = "multiplex_table"))
-#              )
-#      )
-      # Removed the About tab
-
-
-
-  # These are the paramters used for trouble shooting
+  # These are the parameters used for trouble shooting
   #
   # primer = "rs53576, rs1815739, rs7412, rs429358, rs6152"
   # shift = 100
@@ -666,25 +630,10 @@ soulofmultiplex <- function(df, Heterodimer_tm){
   # Heterodimer_tm = 50
   # Homodimer <- 45
   # top <- 2
+
 #  consoleText <- reactiveVal("")
 
-#  appendConsole <- function(message) {
-#    consoleText(paste0(consoleText(), "\n", message))
-#  }
-
-#  observe({
-#    input$someActionButton
-#    isolate({
-#      current_time <- Sys.time()
-#      message <- paste("Button clicked at:", current_time)
-#      appendConsole(message)
-#    })
-#  })
-
-  # Render the console text
-#  output$consoleOutput <- renderText({
-#    consoleText()
-#  })
+  # Render the console text (from app code)
 
 
   mart_api <- function(primer,
@@ -728,7 +677,7 @@ soulofmultiplex <- function(df, Heterodimer_tm){
 
     ### I have a long long string. I want to get the left 18~25 charactors and
     # between 300 ~ 800 units away, I want another 18 ~ 25
-    df <- all_text_warngling(snp_wrangled,
+    df <- all_text_wrangling(snp_wrangled,
                              start_distance,
                              end_distance,
                              center,
@@ -746,7 +695,7 @@ soulofmultiplex <- function(df, Heterodimer_tm){
   get_filter <- function(df, # primer
                          desired_tm,
                          diff, # max diff in tm
-                         Heterodimer_tm, # should this be heterodimer_tm?
+                         Heterodimer_tm,
                          Homodimer,
                          hairpin) {
 
@@ -793,7 +742,7 @@ soulofmultiplex <- function(df, Heterodimer_tm){
     print(level5)
 
 
-    level5_with_tm_result <- get_tm_for_all_primers(level5)
+    level5_with_tm_result <- get_tm_for_all_primers(level5) # What is this fxn??
 
 
     return(level5_with_tm_result)
@@ -802,60 +751,25 @@ soulofmultiplex <- function(df, Heterodimer_tm){
 
 
 
-  # This one produces the true table we used - MAIN OUTPUT OF IDEAL FXN
-  ProduceMasterTable <- function(desires_tm, diff, Heterodimer_tm, Homodimer, hairpin){
-    reactive(get_filter(unfiltered(),
-                        desired_tm,
-                        diff,
-                        Heterodimer_tm,
-                        Homodimer,
-                        hairpin
-  ))}
+  # This one produces the true table we used
+  # does get_filter already do this?
 
   # This produced the raw table that has not been filtered
   #unfiltered
-  ProduceRawTable <- function(run_button, primer_list, shift){
-    eventReactive(input$run_button, {
-    mart_api(primer_list, shift, appendConsole)
-  })}
-
-
-
+  # does mart_api do this already?
 
 
   # This produce summary of primer generations
-  ProduceGenerationSummary <- function(){
-    renderDataTable(
-    masterTable()[c(1,2,3)]
-  )}
-
-
-  # output$primer_table <- renderDataTable(mtcars)
-
+  #ProduceGenerationSummary (below)
+  #  masterTable()[c(1,2,3)] <- what is this?
 
   # This produces the result of multiplexing
-  ProduceMultiplexResult <- function(Heterodimer_tm, top){
-    renderDataTable({
-    req(masterTable())  # Ensure that masterTable is not NULL
-    get_multiplex(masterTable(),
-                  input$Heterodimer_tm,
-                  input$top)
-  })}
+  #function that uses get_multiplex function to produce a result
 
 
   # GOAL OF FUNCTION: CREATE SIDE OUTPUT CONTAINING CHARTS AND SNPS THAT CAN BE COPIED/PASTED
 
 
-  # Download dataframe
-  # output$downloadData <- downloadHandler(
-  #   filename = function() {
-  #     paste("Save a df", ".csv", sep = "")
-  #   },
-  #   content = function(file) {
-  #     write.csv(masterTable(), file, row.names = FALSE)
-  #   }
-  # )
-#}
+# function to download master table as csv to downloads
 
-# Run the application
-#shinyApp(ui = ui, server = server)
+# function of everything together
