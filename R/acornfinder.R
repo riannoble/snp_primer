@@ -9,7 +9,7 @@
 #   Check Package:             'Ctrl + Shift + E'
 #   Test Package:              'Ctrl + Shift + T'
 
-
+install.packages("devtools")
 library(devtools)
 install_github("rianoble/acornfinder")
 library(acornfinder)
@@ -635,7 +635,7 @@ soulofmultiplex <- function(df, Heterodimer_tm){
 
   # Render the console text (from app code)
 
-
+# FUNCTION - Primer Generator
   mart_api <- function(primer,
                        shift){
 
@@ -652,7 +652,7 @@ soulofmultiplex <- function(df, Heterodimer_tm){
     snp_list <- strsplit(primer, " ")[[1]]
     upStream <- center
     downStream <- center
-    snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp")
+    snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp", host = "http://www.ensembl.org")
     snp_sequence <- getBM(attributes = c('refsnp_id', 'snp'),
                           filters = c('snp_filter', 'upstream_flank', 'downstream_flank'),
                           checkFilters = FALSE,
