@@ -9,10 +9,10 @@
 #   Check Package:             'Ctrl + Shift + E'
 #   Test Package:              'Ctrl + Shift + T'
 
-install.packages("devtools")
-library(devtools)
-install_github("rianoble/acornfinder")
-library(acornfinder)
+# install.packages("devtools")
+# library(devtools)
+# install_github("rianoble/acornfinder")
+# library(acornfinder)
 
 
 
