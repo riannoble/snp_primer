@@ -47,6 +47,7 @@ require("plotly")
 
 
 # Bioinformatics
+require("BiocManager")
 require("biomaRt")
 require("spgs")
 require("primer3")
@@ -60,8 +61,8 @@ require("primer3")
 
 #source("functions.R")
 
-options(repos = BiocManager::repositories())
-options(scipen = 999)
+#options(repos = BiocManager::repositories())
+#options(scipen = 999)
 
 # BACKING FUNCTIONS/////////////
 
@@ -384,13 +385,16 @@ extract_substrings_far <- function(string,
 
 
 ## The one that produce all the primers
-all_text_wrangling <- function(snp_wrangled,
+all_text_warngling <- function(snp_wrangled,
                                start_distance,
                                end_distance,
                                center,
                                far,
                                shift){
 
+  ## extrac the candidate from the left side (upstream) of the SNP
+  ## extrac the candidate from the right side (downstream) of the SNP
+  ## We are only getting the primers that are closed to the SNP for now
   grouped_sequences <- snp_wrangled %>%
     group_by(snpID) %>%
     summarize(sequence_list = list(sequence)) %>%
@@ -426,21 +430,66 @@ all_text_wrangling <- function(snp_wrangled,
 }
 
 
-# Apply all the filter before multiplexing
+# Apply all the filters before multiplexing
 stage1_filter <- function(df,
                           desired_tm,
                           diff,
                           Homodimer,
                           hairpin){
   df
+
+  # This is the soft filter. We first make sure there is leftafter after the filtering. If not, we keep the best option
   for (i in 1:length(df[[2]])){
-    df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_homodimer)[2,]) < Homodimer]
-    df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_hairpin)[2,]) < hairpin]
-    df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_tm)) < desired_tm + diff]
-    df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_tm)) > desired_tm - diff]
-    if (length(df[[2]][[i]]) == 0){
-      length(df[[3]][[i]]) <- 0
+
+    # Homodimer
+    k = df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_homodimer)[2,]) < Homodimer]
+    if (length(k) > 5) {
+      df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_homodimer)[2,]) < Homodimer]
+    }else{
+      print(paste("Homodimer - Bottle neck", df[[1]][[i]]))
+      calculated_values <- sapply(df[[2]][[i]], calculate_homodimer)
+      differences <- abs(unlist(calculated_values[2,]) - Homodimer)
+      min_diff_indices <- order(differences)[1:min(5, length(differences))]
+      df[[2]][[i]] <- df[[2]][[i]][min_diff_indices]
     }
+
+    # Hairpin
+    k = df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_hairpin)[2,]) < hairpin]
+    if (length(k) > 5) {
+      df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_hairpin)[2,]) < hairpin]
+    }else{
+      print(paste("Hairpin - Bottle neck", df[[1]][[i]]))
+      calculated_values <- sapply(df[[2]][[i]], calculate_hairpin)
+      differences <- abs(unlist(calculated_values[2,]) - hairpin)
+      min_diff_indices <- order(differences)[1:min(5, length(differences))]
+      df[[2]][[i]] <- df[[2]][[i]][min_diff_indices]
+    }
+
+    # Filter Tm above target
+    k = df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_tm)) < desired_tm + diff]
+    if (length(k) > 5) {
+      df[[2]][[i]] <- k
+    }else{
+      print(paste("Tm_above - Bottle neck", df[[1]][[i]]))
+      calculated_values <- sapply(df[[2]][[i]], calculate_tm)
+      differences <- abs(unlist(calculated_values) - (desired_tm + diff) )
+      min_diff_indices <- order(differences)[1:min(5, length(differences))]
+      df[[2]][[i]] <- df[[2]][[i]][min_diff_indices]
+    }
+
+    # df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_tm)) > desired_tm - diff]
+    # Filter Tm below target
+    k = df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_tm)) > desired_tm - diff]
+    if (length(k) > 5) {
+      df[[2]][[i]] <- k
+    }else{
+      print(paste("TM below - Bottle neck", df[[1]][[i]]))
+      calculated_values <- sapply(df[[2]][[i]], calculate_tm)
+      differences <- abs(unlist(calculated_values) - (desired_tm - diff) )
+      min_diff_indices <- order(differences)[1:min(5, length(differences))]
+      df[[2]][[i]] <- df[[2]][[i]][min_diff_indices]
+    }
+
   }
   df
 
@@ -458,6 +507,7 @@ stage1_filter <- function(df,
       df[[3]][[i]] <- df[[3]][[i]][unlist(sapply(df[[3]][[i]], calculate_tm)) < desired_tm + diff]
     }
   }
+
   df
   for (i in length(df[[1]]):1){
     if (length(df[[2]][[i]]) == 0){
@@ -533,59 +583,62 @@ soulofmultiplex <- function(df, Heterodimer_tm){
                               incoming_list(arranged_list[[2]])
   )
 
-  level3 <- replace_end_nodes(level3,
-                              incoming_list(arranged_list[[3]])
-  )
+  if (length(arranged_list) != 2) {
 
-  str(level3)
-  # arranged_list
-  # Running
-  print(length(arranged_list))
-  for (i in 4:length(arranged_list)){
+    level3 <- replace_end_nodes(level3,
+                                incoming_list(arranged_list[[3]])
+    )
 
-    # Start a timer
-    start_time <- Sys.time()
+    str(level3)
+    # arranged_list
+    # Running
+    print(length(arranged_list))
+    for (i in 4:length(arranged_list)){
 
-    # Get all the end points from the tree
-    endpoints <- get_endpoints(level3)
+      # Start a timer
+      start_time <- Sys.time()
 
-    # Endpoints come back a little messy
-    endpoints <- clean_endpoints(endpoints)
-    print(paste("Start with ", length(endpoints)))
+      # Get all the end points from the tree
+      endpoints <- get_endpoints(level3)
 
-    # Evalauate all the ned points to its parents
-    bad_nodes <- compute_bad_nodes(endpoints, Heterodimer_tm)
-    print(paste("We are removing: ", length(bad_nodes)))
+      # Endpoints come back a little messy
+      endpoints <- clean_endpoints(endpoints)
+      print(paste("Start with ", length(endpoints)))
+
+      # Evalauate all the ned points to its parents
+      bad_nodes <- compute_bad_nodes(endpoints, Heterodimer_tm)
+      print(paste("We are removing: ", length(bad_nodes)))
 
 
-    # Remove bad nodes if there are any
-    if (length(bad_nodes) != 0){
-      level3 <- Iterate_remove(level3,bad_nodes)
-      level3 <- remove_empty_lists(level3)
+      # Remove bad nodes if there are any
+      if (length(bad_nodes) != 0){
+        level3 <- Iterate_remove(level3,bad_nodes)
+        level3 <- remove_empty_lists(level3)
+      }
+
+
+      # If all nodes are bad, return NULL
+      if (length(endpoints) == length(bad_nodes)){
+        print("All nodes are removed during the process")
+        return(NULL)
+      }
+
+      print(paste("After trimming: ", length(get_endpoints(level3))))
+
+      # Stop adding list if we are at the last level
+      if (1){
+        level4 <- incoming_list(arranged_list[[i]])
+        print(paste("New list: ", length(level4)))
+
+        level3 <- replace_end_nodes(level3, level4)
+        print(paste("level3 + level4: ", length(get_endpoints(level3))))
+      }
+
+      # Summarize results for this level
+      print(paste("How far are we: ", i))
+      print(paste("Time" , round(Sys.time() - start_time, 1)))
+      print("--------------------------")
     }
-
-
-    # If all nodes are bad, return NULL
-    if (length(endpoints) == length(bad_nodes)){
-      print("All nodes are removed during the process")
-      return(NULL)
-    }
-
-    print(paste("After trimming: ", length(get_endpoints(level3))))
-
-    # Stop adding list if we are at the last level
-    if (1){
-      level4 <- incoming_list(arranged_list[[i]])
-      print(paste("New list: ", length(level4)))
-
-      level3 <- replace_end_nodes(level3, level4)
-      print(paste("level3 + level4: ", length(get_endpoints(level3))))
-    }
-
-    # Summarize results for this level
-    print(paste("How far are we: ", i))
-    print(paste("Time" , round(Sys.time() - start_time, 1)))
-    print("--------------------------")
   }
 
   level5 <- get_display_tree(level3, 3)
@@ -601,6 +654,34 @@ soulofmultiplex <- function(df, Heterodimer_tm){
 
   return(level5)
 
+}
+
+
+get_tm_for_all_primers <- function(level5) {
+
+
+  level5_with_tm_result <- data.frame(matrix(NA, nrow = nrow(level5), ncol = 0))
+
+  # Apply the 'calculate_tm' function to each column of the dataframe
+  for (i in seq_along(level5)) {
+    # Calculate TM for the column and round the result
+    tm_results <- round(calculate_tm(level5[[i]]), 2)
+
+    # Combine the original column with the TM results
+    combined <- data.frame(level5[[i]], tm_results)
+
+    # Set the column names for the combined columns
+    original_col_name <- names(level5)[i]
+    names(combined) <- c(original_col_name, paste0(original_col_name, "_tm"))
+
+    # Bind the new combined columns to the result dataframe
+    level5_with_tm_result <- cbind(level5_with_tm_result, combined)
+  }
+
+  # Remove the first column if it contains only NA values from the placeholder creation
+  level5_with_tm_result <- level5_with_tm_result[, colSums(is.na(level5_with_tm_result)) < nrow(level5_with_tm_result)]
+  rownames(level5_with_tm_result) <- rownames(level5)
+  level5_with_tm_result <- as.matrix(level5_with_tm_result)
 }
 
 # END OF BACKING FUNCTIONS//////////////
@@ -652,7 +733,7 @@ soulofmultiplex <- function(df, Heterodimer_tm){
     snp_list <- strsplit(primer, " ")[[1]]
     upStream <- center
     downStream <- center
-    snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp", host = "http://www.ensembl.org")
+    snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # possibly establish earlier?
     snp_sequence <- getBM(attributes = c('refsnp_id', 'snp'),
                           filters = c('snp_filter', 'upstream_flank', 'downstream_flank'),
                           checkFilters = FALSE,
@@ -747,7 +828,21 @@ soulofmultiplex <- function(df, Heterodimer_tm){
     return(level5_with_tm_result)
   }
 
+  # TROUBLESHOOTING
+  # primer = "rs53576, rs1815739, rs7412, rs429358, rs6152"
+  # shift = 100
+  # desired_tm = 64
+  # diff = 3
+  # Heterodimer_tm = 50
+  # Homodimer <- 45
+  # top <- 2
+  #hairpin <- 45
 
+findacorn <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin){
+  mart_api(primer, shift)
+  get_filter(df, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)
+  get_multiplex(df, Heterodimer_tm, top)
+}
 
 
   # This one produces the true table we used
