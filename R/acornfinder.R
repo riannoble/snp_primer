@@ -29,6 +29,7 @@
 require("rprimer")
 #library(Biostrings)
 require("htmltools")
+require("kableExtra")
 
 # Data processing
 require("DT")
@@ -737,7 +738,7 @@ mart_api <- function(primer,
   print("upstream")
   downStream <- center
   print("downstream")
-  snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # possibly establish earlier?
+  #snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # possibly establish earlier?
   snp_sequence <- getBM(attributes = c('refsnp_id', 'snp'),
                         filters = c('snp_filter', 'upstream_flank', 'downstream_flank'),
                         checkFilters = FALSE,
@@ -845,12 +846,22 @@ findacorn <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer
   df <- mart_api(primer, shift)
   df <- get_filter(df, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin) # unexplained error?
   result <- get_multiplex(df, Heterodimer_tm, top)
-  # Example HTML content
-  html_template <- paste0(result, collapse = "")
 
-  # Display HTML content in RStudio Viewer pane
-  html_print(html_template)
+  # Example HTML content
+  output_matrix <- matrix(result, ncol = 12, byrow = TRUE)
+
+  # Convert the matrix to a data frame
+  output_df <- as.data.frame(output_matrix, stringsAsFactors = FALSE)
+
+  # Convert the data frame to an HTML table
+  output_html_table <- htmlTable::htmlTable(output_df, align = "l", rnames = FALSE, caption = "Output Table")
+
+  # Print the HTML table
+  html_print(output_html_table)
   }
+
+# PROBES - forward or reverse, can be anywhere in between
+# REVERSE PRIMERS - opposite direction, other end
 
 
 # This one produces the true table we used
