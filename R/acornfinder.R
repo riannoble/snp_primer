@@ -385,7 +385,7 @@ extract_substrings_far <- function(string,
 
 
 ## The one that produce all the primers
-all_text_warngling <- function(snp_wrangled,
+all_text_wrnngling <- function(snp_wrangled,
                                start_distance,
                                end_distance,
                                center,
