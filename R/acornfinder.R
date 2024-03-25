@@ -51,7 +51,10 @@ require("BiocManager")
 require("biomaRt")
 require("spgs")
 require("primer3")
+<<<<<<< HEAD
 
+=======
+>>>>>>> 93830021f0b0341f97a13b05ae7b494d706c61ff
 
 
 # Deployment
@@ -703,6 +706,7 @@ get_tm_for_all_primers <- function(level5) {
 #      div(style = "display: none", downloadButton("downloadData", "Download"))
 
 
+<<<<<<< HEAD
 # These are the parameters used for trouble shooting
 #
 # primer = "rs53576, rs1815739, rs7412, rs429358, rs6152"
@@ -751,12 +755,81 @@ mart_api <- function(primer,
     for (i in list_seq(snp_sequence$`Variant sequences`[snp_sequence$`Variant name`==j])){
       snp_wrangled[nrow(snp_wrangled) + 1,] <- c(j, i)
     }
+=======
+  # These are the parameters used for trouble shooting
+  #
+  # primer = "rs53576, rs1815739, rs7412, rs429358, rs6152"
+  # shift = 100
+  # desired_tm = 64
+  # diff = 3
+  # Heterodimer_tm = 50
+  # Homodimer <- 45
+  # top <- 2
+
+#  consoleText <- reactiveVal("")
+
+  # Render the console text (from app code)
+
+# FUNCTION - Primer Generator
+  mart_api <- function(primer,
+                       shift){
+
+    # We will start exploring options 800 bp away from the SNP location upstream and downstream
+    center <- 800
+    hairpin <- 45
+    # from that distance of 800, we will search the range from 600 to 1,000. (800+200 and 800-200)
+    far <- 200
+    start_distance <- 15
+    end_distance <- 28
+
+    # Accessing database
+    print("Execute MART API")
+    snp_list <- strsplit(primer, " ")[[1]]
+    upStream <- center
+    downStream <- center
+    snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # possibly establish earlier?
+    snp_sequence <- getBM(attributes = c('refsnp_id', 'snp'),
+                          filters = c('snp_filter', 'upstream_flank', 'downstream_flank'),
+                          checkFilters = FALSE,
+                          values = list(snp_list, upStream, downStream),
+                          mart = snpmart,
+                          bmHeader = TRUE)
+
+    #Create a new data frame
+    snp_wrangled <- data.frame(matrix(ncol = 2, nrow = 0))
+
+
+    # Add each variation as a new string into each row
+    for (j in snp_sequence$`Variant name`){
+      for (i in list_seq(snp_sequence$`Variant sequences`[snp_sequence$`Variant name`==j])){
+        snp_wrangled[nrow(snp_wrangled) + 1,] <- c(j, i)
+      }
+    }
+
+    # Rename columns and data frame
+    colnames(snp_wrangled) = c("snpID", "sequence")
+
+
+    ### I have a long long string. I want to get the left 18~25 charactors and
+    # between 300 ~ 800 units away, I want another 18 ~ 25
+    df <- all_text_wrangling(snp_wrangled,
+                             start_distance,
+                             end_distance,
+                             center,
+                             far,
+                             shift)
+    df
+
+    print("Primer generated")
+    return(df)
+>>>>>>> 93830021f0b0341f97a13b05ae7b494d706c61ff
   }
 
   # Rename columns and data frame
   colnames(snp_wrangled) = c("snpID", "sequence")
 
 
+<<<<<<< HEAD
   ### I have a long long string. I want to get the left 18~25 charactors and
   # between 300 ~ 800 units away, I want another 18 ~ 25
   df <- all_text_wrangling(snp_wrangled,
@@ -770,6 +843,44 @@ mart_api <- function(primer,
   print("Primer generated")
   return(df)
 }
+=======
+  get_filter <- function(df, # primer
+                         desired_tm,
+                         diff, # max diff in tm
+                         Heterodimer_tm,
+                         Homodimer,
+                         hairpin) {
+
+    print("R get filter activated")
+    # Applied filters before multiplexing
+    df <- stage1_filter(df, desired_tm, diff, Homodimer, hairpin)
+    print(df)
+
+    print("Filtered")
+
+
+    # Count how many candidates there are for each primer group
+    df <- df %>%
+      mutate(substrings_count = lengths(substrings),
+             faraway_count = lengths(faraway)) %>%
+      relocate(snpID, substrings_count, faraway_count, everything()) # Moves a block of columns
+
+    # Display the updated nested tibble
+    return(df)
+  }
+
+  get_multiplex <- function(df,
+                            Heterodimer_tm,
+                            top){
+
+    print("Tree search")
+    df
+    # Keep only certain amount of candidates
+    df[[4]] <- extract_top_n(df[[4]], top)
+    df[[5]] <- extract_top_n(df[[5]], top)
+    # Technical debt
+    df <- df[!duplicated(df$snpID), ]
+>>>>>>> 93830021f0b0341f97a13b05ae7b494d706c61ff
 
 
 
@@ -798,9 +909,13 @@ get_filter <- function(df, # primer
   return(df)
 }
 
+<<<<<<< HEAD
 get_multiplex <- function(df,
                           Heterodimer_tm,
                           top){
+=======
+    level5_with_tm_result <- get_tm_for_all_primers(level5) # What is this fxn??
+>>>>>>> 93830021f0b0341f97a13b05ae7b494d706c61ff
 
   print("Tree search")
   df
@@ -810,8 +925,24 @@ get_multiplex <- function(df,
   # Technical debt
   df <- df[!duplicated(df$snpID), ]
 
+  # TROUBLESHOOTING
+  # primer = "rs53576, rs1815739, rs7412, rs429358, rs6152"
+  # shift = 100
+  # desired_tm = 64
+  # diff = 3
+  # Heterodimer_tm = 50
+  # Homodimer <- 45
+  # top <- 2
+  #hairpin <- 45
+
+findacorn <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin){
+  mart_api(primer, shift)
+  get_filter(df, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)
+  get_multiplex(df, Heterodimer_tm, top)
+}
 
 
+<<<<<<< HEAD
   df <- df %>%
     group_by(snpID) %>%
     filter(substrings_count == max(substrings_count))
@@ -855,6 +986,22 @@ findacorn <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer
 # This produced the raw table that has not been filtered
 #unfiltered
 # does mart_api do this already?
+=======
+  # This one produces the true table we used
+  # does get_filter already do this?
+
+  # This produced the raw table that has not been filtered
+  #unfiltered
+  # does mart_api do this already?
+
+
+  # This produce summary of primer generations
+  #ProduceGenerationSummary (below)
+  #  masterTable()[c(1,2,3)] <- what is this?
+
+  # This produces the result of multiplexing
+  #function that uses get_multiplex function to produce a result
+>>>>>>> 93830021f0b0341f97a13b05ae7b494d706c61ff
 
 
 # This produce summary of primer generations
@@ -865,9 +1012,14 @@ findacorn <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer
 #function that uses get_multiplex function to produce a result
 
 
+<<<<<<< HEAD
 # GOAL OF FUNCTION: CREATE SIDE OUTPUT CONTAINING CHARTS AND SNPS THAT CAN BE COPIED/PASTED
 
 
 # function to download master table as csv to downloads
 
+=======
+# function to download master table as csv to downloads
+
+>>>>>>> 93830021f0b0341f97a13b05ae7b494d706c61ff
 # function of everything together
