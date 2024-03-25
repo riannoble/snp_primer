@@ -4,12 +4,13 @@ This is an extension of Archarlie's Shiny App that creates SNP-sensitive primers
 
 ### Installation
 
-**Copy the code below:**
+**Copy and paste the code below:**
 
 install.packages("devtools")
 library(devtools)
 install_github("rianoble/acornfinder")
 library(acornfinder)
+
 snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp")
 
 

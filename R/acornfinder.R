@@ -28,7 +28,7 @@
 
 require("rprimer")
 #library(Biostrings)
-require(tcltk)
+require("htmltools")
 
 # Data processing
 require("DT")
@@ -732,8 +732,11 @@ mart_api <- function(primer,
   # Accessing database
   print("Execute MART API")
   snp_list <- strsplit(primer, " ")[[1]]
+  print("snp_list generated")
   upStream <- center
+  print("upstream")
   downStream <- center
+  print("downstream")
   snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # possibly establish earlier?
   snp_sequence <- getBM(attributes = c('refsnp_id', 'snp'),
                         filters = c('snp_filter', 'upstream_flank', 'downstream_flank'),
@@ -839,11 +842,15 @@ get_multiplex <- function(df,
 #hairpin <- 45
 
 findacorn <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin){
-  mart_api(primer, shift)
-  get_filter(df, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin) # unexplained error?
+  df <- mart_api(primer, shift)
+  df <- get_filter(df, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin) # unexplained error?
   result <- get_multiplex(df, Heterodimer_tm, top)
-  tkmessageBox(message = paste("The result is:", result))
-}
+  # Example HTML content
+  html_template <- paste0(result, collapse = "")
+
+  # Display HTML content in RStudio Viewer pane
+  html_print(html_template)
+  }
 
 
 # This one produces the true table we used
