@@ -9,7 +9,10 @@
 #   Check Package:             'Ctrl + Shift + E'
 #   Test Package:              'Ctrl + Shift + T'
 
-
+# install.packages("devtools")
+# library(devtools)
+# install_github("rianoble/acornfinder")
+# library(acornfinder)
 
 
 
@@ -23,42 +26,44 @@
 
 #BiocManager::install("rprimer")
 
-require(rprimer)
+require("rprimer")
 #library(Biostrings)
 
 # Data processing
-require(DT)
-require(dplyr)
-require(tidyverse)
-require(stringi)
-require(stringr)
-require(mosaic)
-require(purrr)
+require("DT")
+require("dplyr")
+require("tidyverse")
+require("stringi")
+require("stringr")
+require("mosaic")
+require("purrr")
 
 
 #graphing
-library(ggplot2)
-library(hexbin)
-library(patchwork)
-library(plotly)
+require("ggplot2")
+require("hexbin")
+require("patchwork")
+require("plotly")
 
 
 # Bioinformatics
-library(biomaRt)
-library(spgs)
-library(primer3)
+require("BiocManager")
+require("biomaRt")
+require("spgs")
+require("primer3")
+
 
 
 # Deployment
-#library(shinydashboard)
-#library(shiny)
-#library(shinycssloaders)
-#library( shinyWidgets)
+#require("shinydashboard")
+#require("shiny")
+#require("shinycssloaders")
+#require("shinyWidgets")
 
 #source("functions.R")
 
-options(repos = BiocManager::repositories())
-options(scipen = 999)
+#options(repos = BiocManager::repositories())
+#options(scipen = 999)
 
 # BACKING FUNCTIONS/////////////
 
@@ -388,6 +393,9 @@ all_text_warngling <- function(snp_wrangled,
                                far,
                                shift){
 
+  ## extrac the candidate from the left side (upstream) of the SNP
+  ## extrac the candidate from the right side (downstream) of the SNP
+  ## We are only getting the primers that are closed to the SNP for now
   grouped_sequences <- snp_wrangled %>%
     group_by(snpID) %>%
     summarize(sequence_list = list(sequence)) %>%
@@ -423,21 +431,66 @@ all_text_warngling <- function(snp_wrangled,
 }
 
 
-# Apply all the filter before multiplexing
+# Apply all the filters before multiplexing
 stage1_filter <- function(df,
                           desired_tm,
                           diff,
                           Homodimer,
                           hairpin){
   df
+
+  # This is the soft filter. We first make sure there is leftafter after the filtering. If not, we keep the best option
   for (i in 1:length(df[[2]])){
-    df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_homodimer)[2,]) < Homodimer]
-    df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_hairpin)[2,]) < hairpin]
-    df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_tm)) < desired_tm + diff]
-    df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_tm)) > desired_tm - diff]
-    if (length(df[[2]][[i]]) == 0){
-      length(df[[3]][[i]]) <- 0
+
+    # Homodimer
+    k = df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_homodimer)[2,]) < Homodimer]
+    if (length(k) > 5) {
+      df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_homodimer)[2,]) < Homodimer]
+    }else{
+      print(paste("Homodimer - Bottle neck", df[[1]][[i]]))
+      calculated_values <- sapply(df[[2]][[i]], calculate_homodimer)
+      differences <- abs(unlist(calculated_values[2,]) - Homodimer)
+      min_diff_indices <- order(differences)[1:min(5, length(differences))]
+      df[[2]][[i]] <- df[[2]][[i]][min_diff_indices]
     }
+
+    # Hairpin
+    k = df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_hairpin)[2,]) < hairpin]
+    if (length(k) > 5) {
+      df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_hairpin)[2,]) < hairpin]
+    }else{
+      print(paste("Hairpin - Bottle neck", df[[1]][[i]]))
+      calculated_values <- sapply(df[[2]][[i]], calculate_hairpin)
+      differences <- abs(unlist(calculated_values[2,]) - hairpin)
+      min_diff_indices <- order(differences)[1:min(5, length(differences))]
+      df[[2]][[i]] <- df[[2]][[i]][min_diff_indices]
+    }
+
+    # Filter Tm above target
+    k = df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_tm)) < desired_tm + diff]
+    if (length(k) > 5) {
+      df[[2]][[i]] <- k
+    }else{
+      print(paste("Tm_above - Bottle neck", df[[1]][[i]]))
+      calculated_values <- sapply(df[[2]][[i]], calculate_tm)
+      differences <- abs(unlist(calculated_values) - (desired_tm + diff) )
+      min_diff_indices <- order(differences)[1:min(5, length(differences))]
+      df[[2]][[i]] <- df[[2]][[i]][min_diff_indices]
+    }
+
+    # df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_tm)) > desired_tm - diff]
+    # Filter Tm below target
+    k = df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_tm)) > desired_tm - diff]
+    if (length(k) > 5) {
+      df[[2]][[i]] <- k
+    }else{
+      print(paste("TM below - Bottle neck", df[[1]][[i]]))
+      calculated_values <- sapply(df[[2]][[i]], calculate_tm)
+      differences <- abs(unlist(calculated_values) - (desired_tm - diff) )
+      min_diff_indices <- order(differences)[1:min(5, length(differences))]
+      df[[2]][[i]] <- df[[2]][[i]][min_diff_indices]
+    }
+
   }
   df
 
@@ -455,6 +508,7 @@ stage1_filter <- function(df,
       df[[3]][[i]] <- df[[3]][[i]][unlist(sapply(df[[3]][[i]], calculate_tm)) < desired_tm + diff]
     }
   }
+
   df
   for (i in length(df[[1]]):1){
     if (length(df[[2]][[i]]) == 0){
@@ -530,59 +584,62 @@ soulofmultiplex <- function(df, Heterodimer_tm){
                               incoming_list(arranged_list[[2]])
   )
 
-  level3 <- replace_end_nodes(level3,
-                              incoming_list(arranged_list[[3]])
-  )
+  if (length(arranged_list) != 2) {
 
-  str(level3)
-  # arranged_list
-  # Running
-  print(length(arranged_list))
-  for (i in 4:length(arranged_list)){
+    level3 <- replace_end_nodes(level3,
+                                incoming_list(arranged_list[[3]])
+    )
 
-    # Start a timer
-    start_time <- Sys.time()
+    str(level3)
+    # arranged_list
+    # Running
+    print(length(arranged_list))
+    for (i in 4:length(arranged_list)){
 
-    # Get all the end points from the tree
-    endpoints <- get_endpoints(level3)
+      # Start a timer
+      start_time <- Sys.time()
 
-    # Endpoints come back a little messy
-    endpoints <- clean_endpoints(endpoints)
-    print(paste("Start with ", length(endpoints)))
+      # Get all the end points from the tree
+      endpoints <- get_endpoints(level3)
 
-    # Evalauate all the ned points to its parents
-    bad_nodes <- compute_bad_nodes(endpoints, Heterodimer_tm)
-    print(paste("We are removing: ", length(bad_nodes)))
+      # Endpoints come back a little messy
+      endpoints <- clean_endpoints(endpoints)
+      print(paste("Start with ", length(endpoints)))
+
+      # Evalauate all the ned points to its parents
+      bad_nodes <- compute_bad_nodes(endpoints, Heterodimer_tm)
+      print(paste("We are removing: ", length(bad_nodes)))
 
 
-    # Remove bad nodes if there are any
-    if (length(bad_nodes) != 0){
-      level3 <- Iterate_remove(level3,bad_nodes)
-      level3 <- remove_empty_lists(level3)
+      # Remove bad nodes if there are any
+      if (length(bad_nodes) != 0){
+        level3 <- Iterate_remove(level3,bad_nodes)
+        level3 <- remove_empty_lists(level3)
+      }
+
+
+      # If all nodes are bad, return NULL
+      if (length(endpoints) == length(bad_nodes)){
+        print("All nodes are removed during the process")
+        return(NULL)
+      }
+
+      print(paste("After trimming: ", length(get_endpoints(level3))))
+
+      # Stop adding list if we are at the last level
+      if (1){
+        level4 <- incoming_list(arranged_list[[i]])
+        print(paste("New list: ", length(level4)))
+
+        level3 <- replace_end_nodes(level3, level4)
+        print(paste("level3 + level4: ", length(get_endpoints(level3))))
+      }
+
+      # Summarize results for this level
+      print(paste("How far are we: ", i))
+      print(paste("Time" , round(Sys.time() - start_time, 1)))
+      print("--------------------------")
     }
-
-
-    # If all nodes are bad, return NULL
-    if (length(endpoints) == length(bad_nodes)){
-      print("All nodes are removed during the process")
-      return(NULL)
-    }
-
-    print(paste("After trimming: ", length(get_endpoints(level3))))
-
-    # Stop adding list if we are at the last level
-    if (1){
-      level4 <- incoming_list(arranged_list[[i]])
-      print(paste("New list: ", length(level4)))
-
-      level3 <- replace_end_nodes(level3, level4)
-      print(paste("level3 + level4: ", length(get_endpoints(level3))))
-    }
-
-    # Summarize results for this level
-    print(paste("How far are we: ", i))
-    print(paste("Time" , round(Sys.time() - start_time, 1)))
-    print("--------------------------")
   }
 
   level5 <- get_display_tree(level3, 3)
@@ -600,6 +657,34 @@ soulofmultiplex <- function(df, Heterodimer_tm){
 
 }
 
+
+get_tm_for_all_primers <- function(level5) {
+
+
+  level5_with_tm_result <- data.frame(matrix(NA, nrow = nrow(level5), ncol = 0))
+
+  # Apply the 'calculate_tm' function to each column of the dataframe
+  for (i in seq_along(level5)) {
+    # Calculate TM for the column and round the result
+    tm_results <- round(calculate_tm(level5[[i]]), 2)
+
+    # Combine the original column with the TM results
+    combined <- data.frame(level5[[i]], tm_results)
+
+    # Set the column names for the combined columns
+    original_col_name <- names(level5)[i]
+    names(combined) <- c(original_col_name, paste0(original_col_name, "_tm"))
+
+    # Bind the new combined columns to the result dataframe
+    level5_with_tm_result <- cbind(level5_with_tm_result, combined)
+  }
+
+  # Remove the first column if it contains only NA values from the placeholder creation
+  level5_with_tm_result <- level5_with_tm_result[, colSums(is.na(level5_with_tm_result)) < nrow(level5_with_tm_result)]
+  rownames(level5_with_tm_result) <- rownames(level5)
+  level5_with_tm_result <- as.matrix(level5_with_tm_result)
+}
+
 # END OF BACKING FUNCTIONS//////////////
 
 
@@ -607,252 +692,182 @@ soulofmultiplex <- function(df, Heterodimer_tm){
 
 #    sidebarMenu(
 #      menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
-      # actionButton("run_button", "Run Analysis", icon = icon("play")),
-      # numericInput(inputId = "shift", label = "Max Length (bp)", value = 400),
-      # numericInput(inputId = "desired_tm", label = "desired_tm (°C)", value = 60),
-      # sliderInput("diff", "Max difference in TM", 1, 10, 5),
+# actionButton("run_button", "Run Analysis", icon = icon("play")),
+# numericInput(inputId = "shift", label = "Max Length (bp)", value = 400),
+# numericInput(inputId = "desired_tm", label = "desired_tm (°C)", value = 60),
+# sliderInput("diff", "Max difference in TM", 1, 10, 5),
 #      numericInput(inputId = "Heterodimer_tm", label = "Heterodimer (°C)", value = 50),
 #      numericInput(inputId = "Homodimer", label = "Homodimer (°C)", value = 30),
 #      numericInput(inputId = "top", label = "Top", value = 2),
 #      numericInput(inputId = "hairpin", label = "Max Hairpin (°C)", value = 45),
 #      div(style = "display: none", downloadButton("downloadData", "Download"))
 
-# INPUTS FROM DASHBOARD - TO BE IMPLEMENTED INTO FUNCTIONS
 
-#              HTML('<h1 style="padding-left: 20px; margin: 5px; font-size: 80px;">Acorn Finder</h1>'),
-#              HTML('<h2 style="padding-left: 20px; margin: 5px; font-size: 20px;">Acorn Finder is a comprehensive tool designed for rapid Allel-specific Multiplexing Primer Generation</h2>'),
-#              HTML('<hr style="border-top: 1px solid #ccc; margin-top: 10px; margin-bottom: 10px;">'),
-#              HTML('<h2 style="padding-left: 20px; margin: 5px; font-size: 20px;">1. Enter SNP IDs</h2>'),
-#              div(style = "color: blue; gradient; padding-left: 30px;", textInput(inputId = "primer_list", label = "", value = "rs53576, rs1815739, rs7412, rs429358, rs6152")),
-              # Existing Dashboard content
-#              HTML('<h2 style="padding-left: 20px; margin: 5px; font-size: 20px;">2. Specify Desired Tm (°C)</h2>'),
-#              div(style = "padding-left: 30px;", sliderInput(inputId = "desired_tm", label = "", value = 60, min = 40, max = 80)),
+# These are the parameters used for trouble shooting
+#
+# primer = "rs53576, rs1815739, rs7412, rs429358, rs6152"
+# shift = 100
+# desired_tm = 64
+# diff = 3
+# Heterodimer_tm = 50
+# Homodimer <- 45
+# top <- 2
 
-#              HTML('<h2 style="padding-left: 20px; margin: 5px; font-size: 20px;">3. Specify Max Length (bp)</h2>'),
-#              div(style = "padding-left: 30px;", sliderInput(inputId = "shift", label = "", value = 100, min = 100, max = 500)),
-
-#              HTML('<h2 style="padding-left: 20px; margin: 5px; font-size: 20px;">4. Specify Max difference in TM (°C)</h2>'),
-#              div(style = "padding-left: 30px;", sliderInput(inputId = "diff", label = "", value = 5, min = 0, max = 10)),
-
-#              HTML('<h2 style="padding-left: 20px; margin: 5px; font-size: 20px;">5. Adjust other filters as needed</h2>'),
-#              div(style = "padding-left: 30px;", actionButton("run_button", "Run Analysis", icon = icon("play"))),
-
-              # verbatimTextOutput("consoleOutput"),
-#              HTML('<h2 style="padding-left: 20px; margin: 5px; font-size: 20px;">6. This table shows how many primers we are using from each SNP to perform multiplexing</h2>'),
-#              div(style = "padding-left: 30px;",
-#                  column(
-#                    withSpinner(DT::dataTableOutput(outputId = "primer_table")),
-#                    width = 12
-#                  )
-#              ),
-#              HTML('<h2 style="padding-left: 20px; margin: 5px; font-size: 20px;">7. Final result</h2>'),
-#              div(style = "padding-left: 30px;",
-#                  withSpinner(DT::dataTableOutput(outputId = "multiplex_table"))
-#              )
-#      )
-      # Removed the About tab
-
-
-
-  # These are the paramters used for trouble shooting
-  #
-  # primer = "rs53576, rs1815739, rs7412, rs429358, rs6152"
-  # shift = 100
-  # desired_tm = 64
-  # diff = 3
-  # Heterodimer_tm = 50
-  # Homodimer <- 45
-  # top <- 2
 #  consoleText <- reactiveVal("")
 
-#  appendConsole <- function(message) {
-#    consoleText(paste0(consoleText(), "\n", message))
-#  }
+# Render the console text (from app code)
 
-#  observe({
-#    input$someActionButton
-#    isolate({
-#      current_time <- Sys.time()
-#      message <- paste("Button clicked at:", current_time)
-#      appendConsole(message)
-#    })
-#  })
+# FUNCTION - Primer Generator
+mart_api <- function(primer,
+                     shift){
 
-  # Render the console text
-#  output$consoleOutput <- renderText({
-#    consoleText()
-#  })
+  # We will start exploring options 800 bp away from the SNP location upstream and downstream
+  center <- 800
+  hairpin <- 45
+  # from that distance of 800, we will search the range from 600 to 1,000. (800+200 and 800-200)
+  far <- 200
+  start_distance <- 15
+  end_distance <- 28
 
+  # Accessing database
+  print("Execute MART API")
+  snp_list <- strsplit(primer, " ")[[1]]
+  upStream <- center
+  downStream <- center
+  #snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # possibly establish earlier?
+  snp_sequence <- getBM(attributes = c('refsnp_id', 'snp'),
+                        filters = c('snp_filter', 'upstream_flank', 'downstream_flank'),
+                        checkFilters = FALSE,
+                        values = list(snp_list, upStream, downStream),
+                        mart = snpmart,
+                        bmHeader = TRUE)
 
-  mart_api <- function(primer,
-                       shift, appendConsole){
-
-    # We will start exploring options 800 bp away from the SNP location upstream and downstream
-    center <- 800
-    hairpin <- 45
-    # from that distance of 800, we will search the range from 600 to 1,000. (800+200 and 800-200)
-    far <- 200
-    start_distance <- 15
-    end_distance <- 28
-
-    # Accessing database
-    print("Execute MART API")
-    snp_list <- strsplit(primer, " ")[[1]]
-    upStream <- center
-    downStream <- center
-    snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp")
-    snp_sequence <- getBM(attributes = c('refsnp_id', 'snp'),
-                          filters = c('snp_filter', 'upstream_flank', 'downstream_flank'),
-                          checkFilters = FALSE,
-                          values = list(snp_list, upStream, downStream),
-                          mart = snpmart,
-                          bmHeader = TRUE)
-
-    #Create a new data frame
-    snp_wrangled <- data.frame(matrix(ncol = 2, nrow = 0))
+  #Create a new data frame
+  snp_wrangled <- data.frame(matrix(ncol = 2, nrow = 0))
 
 
-    # Add each variation as a new string into each row
-    for (j in snp_sequence$`Variant name`){
-      for (i in list_seq(snp_sequence$`Variant sequences`[snp_sequence$`Variant name`==j])){
-        snp_wrangled[nrow(snp_wrangled) + 1,] <- c(j, i)
-      }
+  # Add each variation as a new string into each row
+  for (j in snp_sequence$`Variant name`){
+    for (i in list_seq(snp_sequence$`Variant sequences`[snp_sequence$`Variant name`==j])){
+      snp_wrangled[nrow(snp_wrangled) + 1,] <- c(j, i)
     }
-
-    # Rename columns and data frame
-    colnames(snp_wrangled) = c("snpID", "sequence")
-
-
-    ### I have a long long string. I want to get the left 18~25 charactors and
-    # between 300 ~ 800 units away, I want another 18 ~ 25
-    df <- all_text_warngling(snp_wrangled,
-                             start_distance,
-                             end_distance,
-                             center,
-                             far,
-                             shift)
-    df
-
-    appendConsole("Primer generated")
-    print("Primer generated")
-    return(df)
   }
 
+  # Rename columns and data frame
+  colnames(snp_wrangled) = c("snpID", "sequence")
 
 
-  get_filter <- function(df, # primer
-                         desired_tm,
-                         diff, # max diff in tm
-                         Heterodimer_tm, # should this be heterodimer_tm?
-                         Homodimer,
-                         hairpin) {
+  ### I have a long long string. I want to get the left 18~25 charactors and
+  # between 300 ~ 800 units away, I want another 18 ~ 25
+  df <- all_text_wrangling(snp_wrangled,
+                           start_distance,
+                           end_distance,
+                           center,
+                           far,
+                           shift)
+  df
 
-    print("R get filter activated")
-    # Applied filters before multiplexing
-    df <- stage1_filter(df, desired_tm, diff, Homodimer, hairpin)
-    print(df)
-
-    print("Filtered")
-
-
-    # Count how many candidates there are for each primer group
-    df <- df %>%
-      mutate(substrings_count = lengths(substrings),
-             faraway_count = lengths(faraway)) %>%
-      relocate(snpID, substrings_count, faraway_count, everything()) # Moves a block of columns
-
-    # Display the updated nested tibble
-    return(df)
-  }
-
-  get_multiplex <- function(df,
-                            Heterodimer_tm,
-                            top){
-
-    print("Tree search")
-    df
-    # Keep only certain amount of candidates
-    df[[4]] <- extract_top_n(df[[4]], top)
-    df[[5]] <- extract_top_n(df[[5]], top)
-    # Techincal debt
-    df <- df[!duplicated(df$snpID), ]
+  print("Primer generated")
+  return(df)
+}
 
 
 
-    df <- df %>%
-      group_by(snpID) %>%
-      filter(substrings_count == max(substrings_count))
+get_filter <- function(df, # primer
+                       desired_tm,
+                       diff, # max diff in tm
+                       Heterodimer_tm,
+                       Homodimer,
+                       hairpin) {
 
-    print(df)
+  print("R get filter activated")
+  # Applied filters before multiplexing
+  df <- stage1_filter(df, desired_tm, diff, Homodimer, hairpin)
+  print(df)
 
-
-    level5 <- soulofmultiplex(df, Heterodimer_tm)
-    print(level5)
-
-
-    level5_with_tm_result <- get_tm_for_all_primers(level5)
-
-
-    return(level5_with_tm_result)
-  }
+  print("Filtered")
 
 
+  # Count how many candidates there are for each primer group
+  df <- df %>%
+    mutate(substrings_count = lengths(substrings),
+           faraway_count = lengths(faraway)) %>%
+    relocate(snpID, substrings_count, faraway_count, everything()) # Moves a block of columns
 
+  # Display the updated nested tibble
+  return(df)
+}
 
-  # This one produces the true table we used - MAIN OUTPUT OF IDEAL FXN
-  ProduceMasterTable <- function(desires_tm, diff, Heterodimer_tm, Homodimer, hairpin){
-    reactive(get_filter(unfiltered(),
-                        desired_tm,
-                        diff,
-                        Heterodimer_tm,
-                        Homodimer,
-                        hairpin
-  ))}
+get_multiplex <- function(df,
+                          Heterodimer_tm,
+                          top){
 
-  # This produced the raw table that has not been filtered
-  #unfiltered
-  ProduceRawTable <- function(run_button, primer_list, shift){
-    eventReactive(input$run_button, {
-    mart_api(primer_list, shift, appendConsole)
-  })}
-
-
+  print("Tree search")
+  df
+  # Keep only certain amount of candidates
+  df[[4]] <- extract_top_n(df[[4]], top)
+  df[[5]] <- extract_top_n(df[[5]], top)
+  # Technical debt
+  df <- df[!duplicated(df$snpID), ]
 
 
 
-  # This produce summary of primer generations
-  ProduceGenerationSummary <- function(){
-    renderDataTable(
-    masterTable()[c(1,2,3)]
-  )}
+  df <- df %>%
+    group_by(snpID) %>%
+    filter(substrings_count == max(substrings_count))
+
+  print(df)
 
 
-  # output$primer_table <- renderDataTable(mtcars)
+  level5 <- soulofmultiplex(df, Heterodimer_tm)
+  print(level5)
 
 
-  # This produces the result of multiplexing
-  ProduceMultiplexResult <- function(Heterodimer_tm, top){
-    renderDataTable({
-    req(masterTable())  # Ensure that masterTable is not NULL
-    get_multiplex(masterTable(),
-                  input$Heterodimer_tm,
-                  input$top)
-  })}
+  level5_with_tm_result <- get_tm_for_all_primers(level5) # What is this fxn??
 
 
-  # GOAL OF FUNCTION: CREATE SIDE OUTPUT CONTAINING CHARTS AND SNPS THAT CAN BE COPIED/PASTED
+  return(level5_with_tm_result)
+}
+
+# TROUBLESHOOTING
+# primer = "rs53576, rs1815739, rs7412, rs429358, rs6152"
+# shift = 100
+# desired_tm = 64
+# diff = 3
+# Heterodimer_tm = 50
+# Homodimer <- 45
+# top <- 2
+#hairpin <- 45
+
+findacorn <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin){
+  message("Running mart_api...")
+  mart_api(primer, shift)
+  message("Running get_filter...")
+  get_filter(df, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)
+  message("Running get_multiplex...")
+  get_multiplex(df, Heterodimer_tm, top)
+}
 
 
-  # Download dataframe
-  # output$downloadData <- downloadHandler(
-  #   filename = function() {
-  #     paste("Save a df", ".csv", sep = "")
-  #   },
-  #   content = function(file) {
-  #     write.csv(masterTable(), file, row.names = FALSE)
-  #   }
-  # )
-#}
+# This one produces the true table we used
+# does get_filter already do this?
 
-# Run the application
-#shinyApp(ui = ui, server = server)
+# This produced the raw table that has not been filtered
+#unfiltered
+# does mart_api do this already?
+
+
+# This produce summary of primer generations
+#ProduceGenerationSummary (below)
+#  masterTable()[c(1,2,3)] <- what is this?
+
+# This produces the result of multiplexing
+#function that uses get_multiplex function to produce a result
+
+
+# GOAL OF FUNCTION: CREATE SIDE OUTPUT CONTAINING CHARTS AND SNPS THAT CAN BE COPIED/PASTED
+
+
+# function to download master table as csv to downloads
+
+# function of everything together
