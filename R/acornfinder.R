@@ -28,6 +28,7 @@
 
 require("rprimer")
 #library(Biostrings)
+require(tcltk)
 
 # Data processing
 require("DT")
@@ -733,7 +734,7 @@ mart_api <- function(primer,
   snp_list <- strsplit(primer, " ")[[1]]
   upStream <- center
   downStream <- center
-  #snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # possibly establish earlier?
+  snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # possibly establish earlier?
   snp_sequence <- getBM(attributes = c('refsnp_id', 'snp'),
                         filters = c('snp_filter', 'upstream_flank', 'downstream_flank'),
                         checkFilters = FALSE,
@@ -824,7 +825,6 @@ get_multiplex <- function(df,
 
   level5_with_tm_result <- get_tm_for_all_primers(level5) # What is this fxn??
 
-
   return(level5_with_tm_result)
 }
 
@@ -840,8 +840,9 @@ get_multiplex <- function(df,
 
 findacorn <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin){
   mart_api(primer, shift)
-  get_filter(df, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)
-  get_multiplex(df, Heterodimer_tm, top)
+  get_filter(df, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin) # unexplained error?
+  result <- get_multiplex(df, Heterodimer_tm, top)
+  tkmessageBox(message = paste("The result is:", result))
 }
 
 
