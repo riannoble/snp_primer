@@ -431,6 +431,49 @@ all_text_wrangling <- function(snp_wrangled,
   return(grouped_sequences)
 }
 
+all_text_wrangling_reverse <- function(snp_wrangled,
+                                       start_distance,
+                                       end_distance,
+                                       center,
+                                       far,
+                                       shift){
+
+  ## extract the candidate from the left side (upstream) of the SNP
+  ## We are only getting the primers that are close to the SNP for now
+  grouped_sequences <- snp_wrangled %>%
+    group_by(snpID) %>%
+    summarize(sequence_list = list(sequence)) %>%
+    mutate(substrings = map(sequence_list, ~extract_substrings(.x,
+                                                               center,
+                                                               start_distance,
+                                                               end_distance))) %>%
+    unnest(substrings)
+
+
+  grouped_sequences_far <- snp_wrangled %>%
+    group_by(snpID) %>%
+    slice(1:1) %>%
+    ungroup() %>%
+    mutate(substrings = map(sequence,
+                            ~extract_substrings_far(.x,
+                                                    center,
+                                                    start_distance,
+                                                    end_distance,
+                                                    far,
+                                                    shift))) %>% unnest(substrings)
+
+  grouped_sequences$faraway <- grouped_sequences_far$substrings
+  grouped_sequences <-  grouped_sequences[, -2]
+
+
+  grouped_sequences$direction <- duplicated(grouped_sequences[[1]])
+
+  grouped_sequences <- grouped_sequences %>%
+    mutate(direction = ifelse(direction == FALSE, "LEFT", "RIGHT"))
+
+  return(grouped_sequences)
+}
+
 
 # Apply all the filters before multiplexing
 stage1_filter <- function(df,
@@ -775,6 +818,62 @@ mart_api <- function(primer,
   return(df)
 }
 
+mart_api_reverse <- function(primer,
+                     shift){
+
+  # We will start exploring options 800 bp away from the SNP location upstream and downstream
+  center <- 800
+  hairpin <- 45
+  # from that distance of 800, we will search the range from 600 to 1,000. (800+200 and 800-200)
+  far <- 200
+  start_distance <- 15
+  end_distance <- 28
+
+  # Accessing database
+  print("Execute MART API")
+  snp_list <- strsplit(primer, " ")[[1]]
+  print("snp_list generated")
+  upStream <- center
+  print("upstream")
+  downStream <- center
+  print("downstream")
+  #snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # possibly establish earlier?
+  snp_sequence <- getBM(attributes = c('refsnp_id', 'snp'),
+                        filters = c('snp_filter', 'upstream_flank', 'downstream_flank'),
+                        checkFilters = FALSE,
+                        values = list(snp_list, upStream, downStream),
+                        mart = snpmart,
+                        bmHeader = TRUE)
+
+  #Create a new data frame
+  snp_wrangled <- data.frame(matrix(ncol = 2, nrow = 0))
+
+
+  # Add each variation as a new string into each row
+  for (j in snp_sequence$`Variant name`){
+    for (i in list_seq(snp_sequence$`Variant sequences`[snp_sequence$`Variant name`==j])){
+      snp_wrangled[nrow(snp_wrangled) + 1,] <- c(j, i)
+    }
+  }
+
+  # Rename columns and data frame
+  colnames(snp_wrangled) = c("snpID", "sequence")
+
+
+  ### I have a long long string. I want to get the left 18~25 characters and
+  # between 300 ~ 800 units away, I want another 18 ~ 25
+  df <- all_text_wrangling_reverse(snp_wrangled,
+                           start_distance,
+                           end_distance,
+                           center,
+                           far,
+                           shift)
+  df
+
+  print("Primer generated")
+  return(df)
+}
+
 
 
 get_filter <- function(df, # primer
@@ -843,6 +942,18 @@ get_multiplex <- function(df,
 #hairpin <- 45
 
 findacorn <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin){
+  df_forward <- mart_api(primer, shift)
+  df_reverse <- mart_api(primer, shift)  # Use the same parameters as for forward primers
+  df_forward <- get_filter(df_forward, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)
+  df_reverse <- get_filter(df_reverse, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)  # Apply the same filters to reverse primers
+  result_forward <- get_multiplex(df_forward, Heterodimer_tm, top)
+  result_reverse <- get_multiplex(df_reverse, Heterodimer_tm, top)  # Get multiplexing results for reverse primers
+  # Combine results for forward and reverse primers into a single output
+  output <- list(forward = result_forward, reverse = result_reverse)
+  return(output)
+}
+
+findacorn_backup <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin){
   df <- mart_api(primer, shift)
   df <- get_filter(df, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin) # unexplained error?
   result <- get_multiplex(df, Heterodimer_tm, top)

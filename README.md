@@ -4,7 +4,7 @@ This is an extension of Archarlie's Shiny App that creates SNP-sensitive primers
 
 ### Installation
 
-**Copy and paste the code below:**
+**Copy and paste the code below:** (Work in Progress)
 
 install.packages("devtools")
 library(devtools)
@@ -13,6 +13,29 @@ library(acornfinder)
 
 snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp")
 
+
+*Supplemental Installation*
+
+If you cannot use the package correctly from just the code above, paste the code below (contains packages) as well. You may need troubleshooting and installation help from a data scientist or bio/statistician (ex. Ria, Brother Terribilini).
+
+require("rprimer")
+require("htmltools")
+require("kableExtra")
+require("DT")
+require("dplyr")
+require("tidyverse")
+require("stringi")
+require("stringr")
+require("mosaic")
+require("purrr")
+require("ggplot2")
+require("hexbin")
+require("patchwork")
+require("plotly")
+require("BiocManager")
+require("biomaRt")
+require("spgs")
+require("primer3")
 
 
 ### findacorn function
@@ -34,6 +57,8 @@ hairpin <- 45
 findacorn(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin)
 
 Attempts to answer all questions in one function. Produces a pop-out output.
+
+*Non-Essential Functions*
 
 ### mart_api function
 
