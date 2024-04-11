@@ -66,6 +66,26 @@ require("primer3")
 #options(repos = BiocManager::repositories())
 #options(scipen = 999)
 
+# RIA FUNCTIONS/////////////////
+
+generate_reverse_primers <- function(sequence, primer_length = 20, shift = 1) {
+  # Reverse complement the sequence
+  reverse_sequence <- reverse_complement(sequence)
+
+  # Initialize vector to store reverse primers
+  reverse_primers <- character()
+
+  # Iterate over the sequence with the specified shift
+  for (i in seq(1, nchar(reverse_sequence) - primer_length + 1, by = shift)) {
+    # Extract primer of specified length
+    primer <- substr(reverse_sequence, i, i + primer_length - 1)
+    # Add primer to vector
+    reverse_primers <- c(reverse_primers, primer)
+  }
+
+  return(reverse_primers)
+}
+
 # BACKING FUNCTIONS/////////////
 
 get_strong1 <- function(x, type){

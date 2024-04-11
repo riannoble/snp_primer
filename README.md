@@ -58,6 +58,10 @@ findacorn(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairp
 
 Attempts to answer all questions in one function. Produces a pop-out output.
 
+-reverse primer has same melting temperature as forward primer
+-melting temps should be under 1-2 degrees difference
+-paste in entire sequence retrieved by biomart in r into primer blast (~1000 bases of seq, 500 before, 500 after)
+
 *Non-Essential Functions*
 
 ### mart_api function
