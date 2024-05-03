@@ -71,3 +71,8 @@ Parameters: primer, shift
 Result: generates primers
 
 Example: 
+
+Future:
+- create a help file?
+install.packages("roxygen2")
+library(roxygen2)
