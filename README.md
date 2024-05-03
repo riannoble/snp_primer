@@ -54,7 +54,7 @@ Heterodimer_tm = 50
 Homodimer <- 45
 top <- 2
 hairpin <- 45
-findacorn(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin)
+output <- findacorn_backup(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin)
 
 Attempts to answer all questions in one function. Produces a pop-out output.
 
