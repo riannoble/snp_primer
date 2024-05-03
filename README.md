@@ -14,7 +14,7 @@ library(acornfinder)
 snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp")
 
 
-*Supplemental Installation*
+## Supplemental Installation
 
 If you cannot use the package correctly from just the code above, paste the code below (contains packages) as well. You may need troubleshooting and installation help from a data scientist or bio/statistician (ex. Ria, Brother Terribilini).
 
@@ -62,7 +62,7 @@ Attempts to answer all questions in one function. Produces a pop-out output.
 -melting temps should be under 1-2 degrees difference
 -paste in entire sequence retrieved by biomart in r into primer blast (~1000 bases of seq, 500 before, 500 after)
 
-*Non-Essential Functions*
+## Non-Essential Functions
 
 ### mart_api function
 
@@ -71,4 +71,3 @@ Parameters: primer, shift
 Result: generates primers
 
 Example: 
-

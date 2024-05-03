@@ -9,13 +9,6 @@
 #   Check Package:             'Ctrl + Shift + E'
 #   Test Package:              'Ctrl + Shift + T'
 
-# install.packages("devtools")
-# library(devtools)
-# install_github("rianoble/acornfinder")
-# library(acornfinder)
-
-
-
 #################################################
 
 # Imports
@@ -26,33 +19,33 @@
 
 #BiocManager::install("rprimer")
 
-require("rprimer")
+library("rprimer")
 #library(Biostrings)
 require("htmltools")
 require("kableExtra")
 
 # Data processing
-require("DT")
-require("dplyr")
-require("tidyverse")
-require("stringi")
-require("stringr")
-require("mosaic")
-require("purrr")
+library("DT")
+library("dplyr")
+library("tidyverse")
+library("stringi")
+library("stringr")
+library("mosaic")
+library("purrr")
 
 
 #graphing
-require("ggplot2")
-require("hexbin")
-require("patchwork")
-require("plotly")
+library("ggplot2")
+library("hexbin")
+library("patchwork")
+library("plotly")
 
 
 # Bioinformatics
-require("BiocManager")
-require("biomaRt")
-require("spgs")
-require("primer3")
+library("BiocManager")
+library("biomaRt")
+library("spgs")
+library("primer3")
 
 
 # Deployment
@@ -793,8 +786,21 @@ mart_api <- function(primer,
   start_distance <- 15
   end_distance <- 28
 
+  <<<<<<< HEAD
   # Accessing database
   print("Execute MART API")
+  snp_list <- strsplit(primer, " ")[[1]]
+  upStream <- center
+  downStream <- center
+  snp_sequence <- getBM(attributes = c('refsnp_id', 'snp'),
+                        filters = c('snp_filter', 'upstream_flank', 'downstream_flank'),
+                        checkFilters = FALSE,
+                        values = list(snp_list, upStream, downStream),
+                        mart = snpmart,
+                        bmHeader = TRUE)
+  =======
+    # Accessing database
+    print("Execute MART API")
   snp_list <- strsplit(primer, " ")[[1]]
   print("snp_list generated")
   upStream <- center
@@ -808,6 +814,7 @@ mart_api <- function(primer,
                         values = list(snp_list, upStream, downStream),
                         mart = snpmart,
                         bmHeader = TRUE)
+  >>>>>>> 8fb8fe5efa968ee1c857a441ea7f66cec18c7503
 
   #Create a new data frame
   snp_wrangled <- data.frame(matrix(ncol = 2, nrow = 0))
@@ -839,7 +846,7 @@ mart_api <- function(primer,
 }
 
 mart_api_reverse <- function(primer,
-                     shift){
+                             shift){
 
   # We will start exploring options 800 bp away from the SNP location upstream and downstream
   center <- 800
@@ -883,15 +890,50 @@ mart_api_reverse <- function(primer,
   ### I have a long long string. I want to get the left 18~25 characters and
   # between 300 ~ 800 units away, I want another 18 ~ 25
   df <- all_text_wrangling_reverse(snp_wrangled,
-                           start_distance,
-                           end_distance,
-                           center,
-                           far,
-                           shift)
+                                   start_distance,
+                                   end_distance,
+                                   center,
+                                   far,
+                                   shift)
   df
 
-  print("Primer generated")
+  <<<<<<< HEAD
+  df <- df %>%
+    group_by(snpID) %>%
+    filter(substrings_count == max(substrings_count))
+
+  print(df)
+
+
+  level5 <- soulofmultiplex(df, Heterodimer_tm)
+  print(level5)
+
+
+  level5_with_tm_result <- get_tm_for_all_primers(level5) # What is this fxn??
+
+
+  return(level5_with_tm_result)
+}
+
+# TROUBLESHOOTING
+# primer = "rs53576, rs1815739, rs7412, rs429358, rs6152"
+# shift = 100
+# desired_tm = 64
+# diff = 3
+# Heterodimer_tm = 50
+# Homodimer <- 45
+# top <- 2
+# hairpin <- 45
+
+findacorn <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin){
+  df <- mart_api(primer, shift)
+  df <- get_filter(df, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)
+  df <- get_multiplex(df, Heterodimer_tm, top)
+  df
+  =======
+    print("Primer generated")
   return(df)
+  >>>>>>> 8fb8fe5efa968ee1c857a441ea7f66cec18c7503
 }
 
 
@@ -989,7 +1031,7 @@ findacorn_backup <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Ho
 
   # Print the HTML table
   html_print(output_html_table)
-  }
+}
 
 # PROBES - forward or reverse, can be anywhere in between
 # REVERSE PRIMERS - opposite direction, other end
