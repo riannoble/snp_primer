@@ -1005,7 +1005,7 @@ get_multiplex <- function(df,
 
 findacorn <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin){
   df_forward <- mart_api(primer, shift)
-  df_reverse <- mart_api(primer, shift)  # Use the same parameters as for forward primers
+  df_reverse <- mart_api_reverse(primer, shift)  # Use the same parameters as for forward primers
   df_forward <- get_filter(df_forward, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)
   df_reverse <- get_filter(df_reverse, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)  # Apply the same filters to reverse primers
   result_forward <- get_multiplex(df_forward, Heterodimer_tm, top)
@@ -1023,8 +1023,7 @@ findacorn_backup <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Ho
   result_forward <- get_multiplex(df_forward, Heterodimer_tm, top)
   result_reverse <- get_multiplex(df_reverse, Heterodimer_tm, top)  # Get multiplexing results for reverse primers
   # Combine results for forward and reverse primers into a single output
-  output <- list(forward = result_forward, reverse = result_reverse)
-  return(output)
+  output <- data.frame(forward = result_forward, reverse = result_reverse)
 
   # Example HTML content
   output_matrix <- matrix(output, ncol = 12, byrow = TRUE)
