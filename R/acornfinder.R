@@ -163,7 +163,7 @@ get_weak1 <- function(x, type){
 ## Warngling SNP list to individual rows
 list_seq <- function(snp) {
   first_position <- unlist(gregexpr('/', snp))[1]
-  number_slash <- str_count(snp, "/")
+  number_slash <- stringr::str_count(snp, "/")
   block <- str_sub(snp, first_position -1 ,
                    first_position - 2 + number_slash*2 + 1)
   block <- gsub("/", "", block)
