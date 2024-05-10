@@ -1,51 +1,30 @@
-#
-# You can learn more about package authoring with RStudio at:
-#
-#   http://r-pkgs.had.co.nz/
-#
-# Some useful keyboard shortcuts for package authoring:
-#
-#   Install Package:           'Ctrl + Shift + B'
-#   Check Package:             'Ctrl + Shift + E'
-#   Test Package:              'Ctrl + Shift + T'
-
-#################################################
-
-# Imports
-
-# Probe
-#if (!require("BiocManager", quietly = TRUE))
-#  install.packages("BiocManager")
-
-#BiocManager::install("rprimer")
-
-library("rprimer")
+library(rprimer)
 #library(Biostrings)
-library("htmltools")
-library("kableExtra")
+library(htmltools)
+library(kableExtra)
 
 # Data processing
-library("DT")
-library("dplyr")
-library("tidyverse")
-library("stringi")
-library("stringr")
-library("mosaic")
-library("purrr")
+library(DT)
+library(dplyr)
+library(tidyverse)
+library(stringi)
+library(stringr)
+library(mosaic)
+library(purrr)
 
 
 #graphing
-library("ggplot2")
-library("hexbin")
-library("patchwork")
-library("plotly")
+library(ggplot2)
+library(hexbin)
+library(patchwork)
+library(plotly)
 
 
 # Bioinformatics
-library("BiocManager")
-library("biomaRt")
-library("spgs")
-library("primer3")
+library(BiocManager)
+library(biomaRt)
+library(spgs)
+library(primer3)
 
 
 # Deployment
@@ -744,49 +723,18 @@ get_tm_for_all_primers <- function(level5) {
 
 # END OF BACKING FUNCTIONS//////////////
 
-
-# INPUTS FROM SIDEBAR MENU - TO BE IMPLEMENTED INTO FUNCTIONS
-
-#    sidebarMenu(
-#      menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
-# actionButton("run_button", "Run Analysis", icon = icon("play")),
-# numericInput(inputId = "shift", label = "Max Length (bp)", value = 400),
-# numericInput(inputId = "desired_tm", label = "desired_tm (°C)", value = 60),
-# sliderInput("diff", "Max difference in TM", 1, 10, 5),
-#      numericInput(inputId = "Heterodimer_tm", label = "Heterodimer (°C)", value = 50),
-#      numericInput(inputId = "Homodimer", label = "Homodimer (°C)", value = 30),
-#      numericInput(inputId = "top", label = "Top", value = 2),
-#      numericInput(inputId = "hairpin", label = "Max Hairpin (°C)", value = 45),
-#      div(style = "display: none", downloadButton("downloadData", "Download"))
-
-
-# These are the parameters used for trouble shooting
-#
-# primer = "rs53576, rs1815739, rs7412, rs429358, rs6152"
-# shift = 100
-# desired_tm = 64
-# diff = 3
-# Heterodimer_tm = 50
-# Homodimer <- 45
-# top <- 2
-
-#  consoleText <- reactiveVal("")
-
-# Render the console text (from app code)
-
-# FUNCTION - Primer Generator
-mart_api <- function(primer,
+# Create possibility tables
+gen_primer_candidates <- function(primer,
                      shift){
 
-  # We will start exploring options 800 bp away from the SNP location upstream and downstream
+  # Explore options 800 bp away from the SNP location upstream and downstream
   center <- 800
   hairpin <- 45
-  # from that distance of 800, we will search the range from 600 to 1,000. (800+200 and 800-200)
+  # Search the range from 600 to 1,000. (800+200 and 800-200)
   far <- 200
   start_distance <- 15
   end_distance <- 28
 
-  <<<<<<< HEAD
   # Accessing database
   print("Execute MART API")
   snp_list <- strsplit(primer, " ")[[1]]
@@ -798,7 +746,6 @@ mart_api <- function(primer,
                         values = list(snp_list, upStream, downStream),
                         mart = snpmart,
                         bmHeader = TRUE)
-  =======
     # Accessing database
     print("Execute MART API")
   snp_list <- strsplit(primer, " ")[[1]]
@@ -807,20 +754,19 @@ mart_api <- function(primer,
   print("upstream")
   downStream <- center
   print("downstream")
-  #snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # possibly establish earlier?
+  snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # possibly establish earlier?
   snp_sequence <- getBM(attributes = c('refsnp_id', 'snp'),
                         filters = c('snp_filter', 'upstream_flank', 'downstream_flank'),
                         checkFilters = FALSE,
                         values = list(snp_list, upStream, downStream),
                         mart = snpmart,
                         bmHeader = TRUE)
-  >>>>>>> 8fb8fe5efa968ee1c857a441ea7f66cec18c7503
 
   #Create a new data frame
   snp_wrangled <- data.frame(matrix(ncol = 2, nrow = 0))
 
 
-  # Add each variation as a new string into each row
+  # New dataframe contains all snp variation sequences plus a snp id column
   for (j in snp_sequence$`Variant name`){
     for (i in list_seq(snp_sequence$`Variant sequences`[snp_sequence$`Variant name`==j])){
       snp_wrangled[nrow(snp_wrangled) + 1,] <- c(j, i)
@@ -831,7 +777,7 @@ mart_api <- function(primer,
   colnames(snp_wrangled) = c("snpID", "sequence")
 
 
-  ### I have a long long string. I want to get the left 18~25 charactors and
+  # I have a long long string. I want to get the left 18~25 characters and
   # between 300 ~ 800 units away, I want another 18 ~ 25
   df <- all_text_wrangling(snp_wrangled,
                            start_distance,
@@ -843,125 +789,6 @@ mart_api <- function(primer,
 
   print("Primer generated")
   return(df)
-}
-
-mart_api_reverse <- function(primer,
-                             shift){
-
-  # We will start exploring options 800 bp away from the SNP location upstream and downstream
-  center <- 800
-  hairpin <- 45
-  # from that distance of 800, we will search the range from 600 to 1,000. (800+200 and 800-200)
-  far <- 200
-  start_distance <- 15
-  end_distance <- 28
-
-  # Accessing database
-  print("Execute MART API")
-  snp_list <- strsplit(primer, " ")[[1]]
-  print("snp_list generated")
-  upStream <- center
-  print("upstream")
-  downStream <- center
-  print("downstream")
-  #snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # possibly establish earlier?
-  snp_sequence <- getBM(attributes = c('refsnp_id', 'snp'),
-                        filters = c('snp_filter', 'upstream_flank', 'downstream_flank'),
-                        checkFilters = FALSE,
-                        values = list(snp_list, upStream, downStream),
-                        mart = snpmart,
-                        bmHeader = TRUE)
-
-  #Create a new data frame
-  snp_wrangled <- data.frame(matrix(ncol = 2, nrow = 0))
-
-
-  # Add each variation as a new string into each row
-  for (j in snp_sequence$`Variant name`){
-    for (i in list_seq(snp_sequence$`Variant sequences`[snp_sequence$`Variant name`==j])){
-      snp_wrangled[nrow(snp_wrangled) + 1,] <- c(j, i)
-    }
-  }
-
-  # Rename columns and data frame
-  colnames(snp_wrangled) = c("snpID", "sequence")
-
-
-  ### I have a long long string. I want to get the left 18~25 characters and
-  # between 300 ~ 800 units away, I want another 18 ~ 25
-  df <- all_text_wrangling_reverse(snp_wrangled,
-                                   start_distance,
-                                   end_distance,
-                                   center,
-                                   far,
-                                   shift)
-  df
-
-  <<<<<<< HEAD
-  df <- df %>%
-    group_by(snpID) %>%
-    filter(substrings_count == max(substrings_count))
-
-  print(df)
-
-
-  level5 <- soulofmultiplex(df, Heterodimer_tm)
-  print(level5)
-
-
-  level5_with_tm_result <- get_tm_for_all_primers(level5) # What is this fxn??
-
-
-  return(level5_with_tm_result)
-}
-
-generate_reverse <- function(primer,
-                             shift){
-
-  # We will start exploring options 800 bp away from the SNP location upstream and downstream
-  center <- 800
-  hairpin <- 45
-  # from that distance of 800, we will search the range from 600 to 1,000. (800+200 and 800-200)
-  far <- 200
-  start_distance <- 15
-  end_distance <- 28
-
-  # Accessing database
-  print("Execute MART API")
-  snp_list <- strsplit(primer, " ")[[1]]
-  print("snp_list generated")
-  upStream <- center
-  print("upstream")
-  downStream <- center
-  print("downstream")
-  #snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp") # possibly establish earlier?
-  snp_sequence <- getBM(attributes = c('refsnp_id', 'snp'),
-                        filters = c('snp_filter', 'upstream_flank', 'downstream_flank'),
-                        checkFilters = FALSE,
-                        values = list(snp_list, upStream, downStream),
-                        mart = snpmart,
-                        bmHeader = TRUE)
-}
-
-# TROUBLESHOOTING
-# primer = "rs53576, rs1815739, rs7412, rs429358, rs6152"
-# shift = 100
-# desired_tm = 64
-# diff = 3
-# Heterodimer_tm = 50
-# Homodimer <- 45
-# top <- 2
-# hairpin <- 45
-
-findacorn <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin){
-  df <- mart_api(primer, shift)
-  df <- get_filter(df, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)
-  df <- get_multiplex(df, Heterodimer_tm, top)
-  df
-  =======
-    print("Primer generated")
-  return(df)
-  >>>>>>> 8fb8fe5efa968ee1c857a441ea7f66cec18c7503
 }
 
 
@@ -998,10 +825,10 @@ get_multiplex <- function(df,
   print("Tree search")
   df
   # Keep only certain amount of candidates
-  df[[4]] <- extract_top_n(df[[4]], top)
-  df[[5]] <- extract_top_n(df[[5]], top)
+  df[[4]] <- extract_top_n(df[[4]], 5) # narrow down substrings column to 5
+  df[[5]] <- extract_top_n(df[[5]], 5) # narrow down faraway column to 5
   # Technical debt
-  df <- df[!duplicated(df$snpID), ]
+  df <- df[!duplicated(df$snpID), ] # ? eliminates all RIGHT direction
 
 
 
@@ -1012,7 +839,7 @@ get_multiplex <- function(df,
   print(df)
 
 
-  level5 <- soulofmultiplex(df, Heterodimer_tm)
+  level5 <- soulofmultiplex(df, Heterodimer_tm) # ? stops running
   print(level5)
 
 
@@ -1021,74 +848,15 @@ get_multiplex <- function(df,
   return(level5_with_tm_result)
 }
 
-# TROUBLESHOOTING
-# primer = "rs53576, rs1815739, rs7412, rs429358, rs6152"
-# shift = 100
-# desired_tm = 64
-# diff = 3
-# Heterodimer_tm = 50
-# Homodimer <- 45
-# top <- 2
-#hairpin <- 45
+#	Check for hairpin loops, self dimers in forward primers
+#	Do same for reverse primers (different order?)
+#	Check melting temperatures in reverse primers to be in range of forward primer melting temps
+#	Check for interactions (hairpin loops/primer-dimers)
+#	Best three by closest melting temps lowest number of interactions (DON’T NARROW DOWN TO THREE)
+#	Complete the whole process for the opposite strand (don’t need marking mechanism)
+#	Do this for all possible snps
+#	To narrow down to final three, look at closest melting temps between all, primer-dimer interactions between all, look for max reduction
+#	Focus on probes later
 
-findacorn <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin){
-  df_forward <- mart_api(primer, shift)
-  df_reverse <- mart_api_reverse(primer, shift)  # Use the same parameters as for forward primers
-  df_forward <- get_filter(df_forward, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)
-  df_reverse <- get_filter(df_reverse, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)  # Apply the same filters to reverse primers
-  result_forward <- get_multiplex(df_forward, Heterodimer_tm, top)
-  result_reverse <- get_multiplex(df_reverse, Heterodimer_tm, top)  # Get multiplexing results for reverse primers
-  # Combine results for forward and reverse primers into a single output
-  output <- list(forward = result_forward, reverse = result_reverse)
-  return(output)
-}
-
-findacorn_backup <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin){
-  df_forward <- mart_api(primer, shift)
-  df_reverse <- mart_api(primer, shift)  # Use the same parameters as for forward primers
-  df_forward <- get_filter(df_forward, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)
-  df_reverse <- get_filter(df_reverse, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)  # Apply the same filters to reverse primers
-  result_forward <- get_multiplex(df_forward, Heterodimer_tm, top)
-  result_reverse <- get_multiplex(df_reverse, Heterodimer_tm, top)  # Get multiplexing results for reverse primers
-  # Combine results for forward and reverse primers into a single output
-  output <- data.frame(forward = result_forward, reverse = result_reverse)
-
-  # Example HTML content
-  output_matrix <- matrix(output, ncol = 12, byrow = TRUE)
-
-  # Convert the matrix to a data frame
-  output_df <- as.data.frame(output_matrix, stringsAsFactors = FALSE)
-
-  # Convert the data frame to an HTML table
-  output_html_table <- htmlTable::htmlTable(output_df, align = "l", rnames = FALSE, caption = "Output Table")
-
-  # Print the HTML table
-  html_print(output_html_table)
-}
-
-# PROBES - forward or reverse, can be anywhere in between
-# REVERSE PRIMERS - opposite direction, other end
-
-
-# This one produces the true table we used
-# does get_filter already do this?
-
-# This produced the raw table that has not been filtered
-#unfiltered
-# does mart_api do this already?
-
-
-# This produce summary of primer generations
-#ProduceGenerationSummary (below)
-#  masterTable()[c(1,2,3)] <- what is this?
-
-# This produces the result of multiplexing
-#function that uses get_multiplex function to produce a result
-
-
-# GOAL OF FUNCTION: CREATE SIDE OUTPUT CONTAINING CHARTS AND SNPS THAT CAN BE COPIED/PASTED
-
-
-# function to download master table as csv to downloads
-
-# function of everything together
+# QUESTIONS
+# -direction column in df?
