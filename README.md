@@ -47,6 +47,9 @@ Result: primers
 Example: 
 
 primer = "rs53576, rs1815739, rs7412, rs429358, rs6152"
+primer = "rs53576, rs1815739, rs7412, rs429358, rs6152"
+# Obesity Primers
+primer = "rs9462492, rs58318008, rs1421085, rs9939609, rs1121980"
 shift = 100
 desired_tm = 64
 diff = 3

@@ -386,11 +386,11 @@ all_text_wrangling <- function(snp_wrangled,
                                far,
                                shift){
 
-  ## extrac the candidate from the left side (upstream) of the SNP
-  ## extrac the candidate from the right side (downstream) of the SNP
+  ## extract the candidate from the left side (upstream) of the SNP
+  ## extract the candidate from the right side (downstream) of the SNP
   ## We are only getting the primers that are closed to the SNP for now
   grouped_sequences <- snp_wrangled %>%
-    group_by(snpID) %>%
+    group_by(snpID, snp_character) %>%
     summarize(sequence_list = list(sequence)) %>%
     mutate(substrings = map(sequence_list, ~extract_substrings(.x,
                                                                center,
@@ -400,7 +400,7 @@ all_text_wrangling <- function(snp_wrangled,
 
 
   grouped_sequences_far <- snp_wrangled %>%
-    group_by(snpID) %>%
+    group_by(snpID, snp_character) %>%
     slice(1:1)%>%
     ungroup() %>%
     mutate(substrings = map(sequence,
@@ -412,10 +412,10 @@ all_text_wrangling <- function(snp_wrangled,
                                                     shift))) %>% unnest(substrings)
 
   grouped_sequences$faraway <- grouped_sequences_far$substrings
-  grouped_sequences <-  grouped_sequences[, -2]
+  grouped_sequences <- grouped_sequences[, -3]
 
-
-  grouped_sequences$direction <- duplicated(grouped_sequences[[1]])
+  # what is this code below for?
+  grouped_sequences$direction <- duplicated(paste(grouped_sequences$snpID, grouped_sequences$snp_character))
 
   grouped_sequences <- grouped_sequences %>%
     mutate(direction = ifelse(direction == FALSE, "LEFT", "RIGHT"))
@@ -476,78 +476,78 @@ stage1_filter <- function(df,
   df
 
   # This is the soft filter. We first make sure there is leftafter after the filtering. If not, we keep the best option
-  for (i in 1:length(df[[2]])){
+  for (i in 1:length(df[[3]])){
 
     # Homodimer
-    k = df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_homodimer)[2,]) < Homodimer]
+    k = df[[3]][[i]][unlist(sapply(df[[3]][[i]], calculate_homodimer)[2,]) < Homodimer]
     if (length(k) > 5) {
-      df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_homodimer)[2,]) < Homodimer]
+      df[[3]][[i]] <- df[[3]][[i]][unlist(sapply(df[[3]][[i]], calculate_homodimer)[3,]) < Homodimer]
     }else{
       print(paste("Homodimer - Bottle neck", df[[1]][[i]]))
-      calculated_values <- sapply(df[[2]][[i]], calculate_homodimer)
+      calculated_values <- sapply(df[[3]][[i]], calculate_homodimer)
       differences <- abs(unlist(calculated_values[2,]) - Homodimer)
       min_diff_indices <- order(differences)[1:min(5, length(differences))]
-      df[[2]][[i]] <- df[[2]][[i]][min_diff_indices]
+      df[[3]][[i]] <- df[[3]][[i]][min_diff_indices]
     }
 
     # Hairpin
-    k = df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_hairpin)[2,]) < hairpin]
+    k = df[[3]][[i]][unlist(sapply(df[[3]][[i]], calculate_hairpin)[2,]) < hairpin]
     if (length(k) > 5) {
-      df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_hairpin)[2,]) < hairpin]
+      df[[3]][[i]] <- df[[3]][[i]][unlist(sapply(df[[3]][[i]], calculate_hairpin)[2,]) < hairpin]
     }else{
       print(paste("Hairpin - Bottle neck", df[[1]][[i]]))
-      calculated_values <- sapply(df[[2]][[i]], calculate_hairpin)
+      calculated_values <- sapply(df[[3]][[i]], calculate_hairpin)
       differences <- abs(unlist(calculated_values[2,]) - hairpin)
       min_diff_indices <- order(differences)[1:min(5, length(differences))]
-      df[[2]][[i]] <- df[[2]][[i]][min_diff_indices]
+      df[[3]][[i]] <- df[[3]][[i]][min_diff_indices]
     }
 
     # Filter Tm above target
-    k = df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_tm)) < desired_tm + diff]
+    k = df[[3]][[i]][unlist(sapply(df[[3]][[i]], calculate_tm)) < desired_tm + diff]
     if (length(k) > 5) {
-      df[[2]][[i]] <- k
+      df[[3]][[i]] <- k
     }else{
       print(paste("Tm_above - Bottle neck", df[[1]][[i]]))
-      calculated_values <- sapply(df[[2]][[i]], calculate_tm)
+      calculated_values <- sapply(df[[3]][[i]], calculate_tm)
       differences <- abs(unlist(calculated_values) - (desired_tm + diff) )
       min_diff_indices <- order(differences)[1:min(5, length(differences))]
-      df[[2]][[i]] <- df[[2]][[i]][min_diff_indices]
+      df[[3]][[i]] <- df[[3]][[i]][min_diff_indices]
     }
 
     # df[[2]][[i]] <- df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_tm)) > desired_tm - diff]
     # Filter Tm below target
-    k = df[[2]][[i]][unlist(sapply(df[[2]][[i]], calculate_tm)) > desired_tm - diff]
+    k = df[[3]][[i]][unlist(sapply(df[[3]][[i]], calculate_tm)) > desired_tm - diff]
     if (length(k) > 5) {
-      df[[2]][[i]] <- k
+      df[[3]][[i]] <- k
     }else{
       print(paste("TM below - Bottle neck", df[[1]][[i]]))
-      calculated_values <- sapply(df[[2]][[i]], calculate_tm)
+      calculated_values <- sapply(df[[3]][[i]], calculate_tm)
       differences <- abs(unlist(calculated_values) - (desired_tm - diff) )
       min_diff_indices <- order(differences)[1:min(5, length(differences))]
-      df[[2]][[i]] <- df[[2]][[i]][min_diff_indices]
+      df[[3]][[i]] <- df[[3]][[i]][min_diff_indices]
     }
 
   }
   df
 
-  for (i in 1:length(df[[3]])){
-    if (length(df[[3]][[i]]) != 0){
-      df[[3]][[i]] <- df[[3]][[i]][unlist(sapply(df[[3]][[i]], calculate_tm)) > desired_tm - diff]
-      df[[3]][[i]] <- df[[3]][[i]][unlist(sapply(df[[3]][[i]], calculate_hairpin)[2,]) < hairpin]
+  for (i in 1:length(df[[4]])){
+    if (length(df[[4]][[i]]) != 0){
+      df[[4]][[i]] <- df[[4]][[i]][unlist(sapply(df[[4]][[i]], calculate_tm)) > desired_tm - diff]
+      df[[4]][[i]] <- df[[4]][[i]][unlist(sapply(df[[4]][[i]], calculate_hairpin)[2,]) < hairpin]
     }
   }
   df
 
-  for (i in 1:length(df[[3]])){
-    if (length(df[[3]][[i]]) != 0){
-      df[[3]][[i]] <- df[[3]][[i]][unlist(sapply(df[[3]][[i]], calculate_homodimer)[2,]) < Homodimer]
-      df[[3]][[i]] <- df[[3]][[i]][unlist(sapply(df[[3]][[i]], calculate_tm)) < desired_tm + diff]
+  for (i in 1:length(df[[4]])){
+    if (length(df[[4]][[i]]) != 0){
+      df[[4]][[i]] <- df[[4]][[i]][unlist(sapply(df[[4]][[i]], calculate_homodimer)[2,]) < Homodimer]
+      df[[4]][[i]] <- df[[4]][[i]][unlist(sapply(df[[4]][[i]], calculate_tm)) < desired_tm + diff]
     }
   }
 
   df
   for (i in length(df[[1]]):1){
-    if (length(df[[2]][[i]]) == 0){
+    if (length(df[[3]][[i]]) == 0){
       df <- df[-i, ]
     }
   }
@@ -602,8 +602,8 @@ soulofmultiplex <- function(df, Heterodimer_tm){
 
   for (i in 1:length(df[[1]])){
     list_3 <- c(list_3,
-                list(unlist(df[[4]][[i]])),
-                list(unlist(df[[5]][[i]])))
+                list(unlist(df[[5]][[i]])),
+                list(unlist(df[[6]][[i]])))
   }
 
   # Arrange the list from small to big
@@ -642,14 +642,15 @@ soulofmultiplex <- function(df, Heterodimer_tm){
       endpoints <- clean_endpoints(endpoints)
       print(paste("Start with ", length(endpoints)))
 
-      # Evalauate all the ned points to its parents
-      bad_nodes <- compute_bad_nodes(endpoints, Heterodimer_tm)
-      print(paste("We are removing: ", length(bad_nodes)))
+      # Evaluate all the ned points to its parents
+      bad_nodes <- compute_bad_nodes(endpoints, Heterodimer_tm) # go back to compute_bad_nodes
+      print(paste("We are removing: ", length(bad_nodes))) # why aren't we removing anything?
+      # to debug, add print statements throughout the for loop for more accurate location of bug
 
 
       # Remove bad nodes if there are any
       if (length(bad_nodes) != 0){
-        level3 <- Iterate_remove(level3,bad_nodes)
+        level3 <- Iterate_remove(level3, bad_nodes)
         level3 <- remove_empty_lists(level3)
       }
 
@@ -723,9 +724,24 @@ get_tm_for_all_primers <- function(level5) {
 
 # END OF BACKING FUNCTIONS//////////////
 
-# Create possibility tables
-gen_primer_candidates <- function(primer,
-                     shift){
+
+#	Check for hairpin loops, self dimers in forward primers
+#	Do same for reverse primers (different order?)
+#	Check melting temperatures in reverse primers to be in range of forward primer melting temps
+#	Check for interactions (hairpin loops/primer-dimers)
+#	Best three by closest melting temps lowest number of interactions (DON’T NARROW DOWN TO THREE)
+#	Complete the whole process for the opposite strand (don’t need marking mechanism)
+#	Do this for all possible snps
+#	To narrow down to final three, look at closest melting temps between all, primer-dimer interactions between all, look for max reduction
+#	Focus on probes later
+
+# QUESTIONS
+# -direction column in df?
+
+# SINGULAR SNP ID
+
+get_primer_candidates <- function(primer,
+                                  shift){
 
   # Explore options 800 bp away from the SNP location upstream and downstream
   center <- 800
@@ -740,14 +756,9 @@ gen_primer_candidates <- function(primer,
   snp_list <- strsplit(primer, " ")[[1]]
   upStream <- center
   downStream <- center
-  snp_sequence <- getBM(attributes = c('refsnp_id', 'snp'),
-                        filters = c('snp_filter', 'upstream_flank', 'downstream_flank'),
-                        checkFilters = FALSE,
-                        values = list(snp_list, upStream, downStream),
-                        mart = snpmart,
-                        bmHeader = TRUE)
-    # Accessing database
-    print("Execute MART API")
+
+  # Accessing database
+  print("Execute MART API")
   snp_list <- strsplit(primer, " ")[[1]]
   print("snp_list generated")
   upStream <- center
@@ -776,6 +787,8 @@ gen_primer_candidates <- function(primer,
   # Rename columns and data frame
   colnames(snp_wrangled) = c("snpID", "sequence")
 
+  # New dataframe contains all snp variation sequences plus a snp id column
+  snp_wrangled <- mutate(snp_wrangled, snp_character = substr(snp_wrangled$sequence, 801, 801)) # 804 is the universal snp position for all snps bc of seq setup
 
   # I have a long long string. I want to get the left 18~25 characters and
   # between 300 ~ 800 units away, I want another 18 ~ 25
@@ -822,21 +835,21 @@ get_multiplex <- function(df,
                           Heterodimer_tm,
                           top){
 
-  print("Tree search")
+  print("Tree search") # relationship measure?
   df
   # Keep only certain amount of candidates
-  df[[4]] <- extract_top_n(df[[4]], 5) # narrow down substrings column to 5
-  df[[5]] <- extract_top_n(df[[5]], 5) # narrow down faraway column to 5
+  df[[5]] <- extract_top_n(df[[5]], 2) # narrow down substrings column to 5?
+  df[[6]] <- extract_top_n(df[[6]], 2) # narrow down faraway column to 5?
   # Technical debt
-  df <- df[!duplicated(df$snpID), ] # ? eliminates all RIGHT direction
+  df_rm <- df[!duplicated(df$snpID), ] # ? eliminates all RIGHT direction
 
 
 
-  df <- df %>%
+  df_rm <- df %>%
     group_by(snpID) %>%
     filter(substrings_count == max(substrings_count))
 
-  print(df)
+  print(df_rm)
 
 
   level5 <- soulofmultiplex(df, Heterodimer_tm) # ? stops running
@@ -848,15 +861,3 @@ get_multiplex <- function(df,
   return(level5_with_tm_result)
 }
 
-#	Check for hairpin loops, self dimers in forward primers
-#	Do same for reverse primers (different order?)
-#	Check melting temperatures in reverse primers to be in range of forward primer melting temps
-#	Check for interactions (hairpin loops/primer-dimers)
-#	Best three by closest melting temps lowest number of interactions (DON’T NARROW DOWN TO THREE)
-#	Complete the whole process for the opposite strand (don’t need marking mechanism)
-#	Do this for all possible snps
-#	To narrow down to final three, look at closest melting temps between all, primer-dimer interactions between all, look for max reduction
-#	Focus on probes later
-
-# QUESTIONS
-# -direction column in df?
