@@ -475,7 +475,7 @@ stage1_filter <- function(df,
                           hairpin){
   df
 
-  # This is the soft filter. We first make sure there is leftafter after the filtering. If not, we keep the best option
+  # This is the soft filter. We first make sure there is left after after the filtering. If not, we keep the best option
   for (i in 1:length(df[[3]])){
 
     # Homodimer
@@ -519,7 +519,7 @@ stage1_filter <- function(df,
     k = df[[3]][[i]][unlist(sapply(df[[3]][[i]], calculate_tm)) > desired_tm - diff]
     if (length(k) > 5) {
       df[[3]][[i]] <- k
-    }else{
+    } else {
       print(paste("TM below - Bottle neck", df[[1]][[i]]))
       calculated_values <- sapply(df[[3]][[i]], calculate_tm)
       differences <- abs(unlist(calculated_values) - (desired_tm - diff) )
@@ -533,6 +533,8 @@ stage1_filter <- function(df,
   for (i in 1:length(df[[4]])){
     if (length(df[[4]][[i]]) != 0){
       df[[4]][[i]] <- df[[4]][[i]][unlist(sapply(df[[4]][[i]], calculate_tm)) > desired_tm - diff]
+    }
+    if (length(df[[4]][[i]]) != 0){
       df[[4]][[i]] <- df[[4]][[i]][unlist(sapply(df[[4]][[i]], calculate_hairpin)[2,]) < hairpin]
     }
   }
@@ -542,12 +544,12 @@ stage1_filter <- function(df,
     if (length(df[[4]][[i]]) != 0){
       df[[4]][[i]] <- df[[4]][[i]][unlist(sapply(df[[4]][[i]], calculate_homodimer)[2,]) < Homodimer]
       df[[4]][[i]] <- df[[4]][[i]][unlist(sapply(df[[4]][[i]], calculate_tm)) < desired_tm + diff]
-    }
+    } else {}
   }
 
   df
   for (i in length(df[[1]]):1){
-    if (length(df[[3]][[i]]) == 0){
+    if (length(df[[4]][[i]]) == 0){
       df <- df[-i, ]
     }
   }
@@ -852,7 +854,7 @@ get_multiplex <- function(df,
   print(df_rm)
 
 
-  level5 <- soulofmultiplex(df, Heterodimer_tm) # ? stops running
+  level5 <- soulofmultiplex(df_rm, Heterodimer_tm) # ? stops running
   print(level5)
 
 
