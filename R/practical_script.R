@@ -1,3 +1,5 @@
+# RUN EVERYTHING FROM LINES 1-868
+
 library(rprimer)
 #library(Biostrings)
 library(htmltools)
@@ -581,9 +583,7 @@ get_display_tree <- function(level3, keep){
 
   display_tree <- list()
   for (i in 1:keep){
-    #if (!is.na(endpoints[[i]])) {
-      display_tree <- c(display_tree, list(unlist(endpoints[[i]])))
-    #}
+    display_tree <- c(display_tree, list(unlist(endpoints[[i]])))
   }
 
   display_tree <- data.frame(display_tree)
@@ -849,14 +849,14 @@ get_multiplex <- function(df,
 
 
 
-  df_rm <- df_rm %>%
+  df_rm <- df %>%
     group_by(snpID) %>%
     filter(substrings_count == max(substrings_count))
 
   print(df_rm)
 
 
-  level5 <- soulofmultiplex(df_rm, Heterodimer_tm) # ? stops running
+  level5 <- soulofmultiplex(df_rm, Heterodimer_tm) # this is where I'm stuck
   print(level5)
 
 
@@ -865,3 +865,25 @@ get_multiplex <- function(df,
   return(level5_with_tm_result)
 }
 
+# END OF RUNNING RANGE
+
+# establish the variables below before running any functions further in the script!
+primer = "rs9462492, rs58318008, rs1421085, rs9939609, rs1121980"
+shift = 100
+desired_tm = 64
+diff = 3
+Heterodimer_tm = 50
+Homodimer <- 45
+top <- 2
+hairpin <- 45
+
+# everything all together (works on the specific level, but not below; go to 747-866 and that code should work. Simply run the code establishing the variables above and then run the code embedded in the functions (get_primer_candidates, get_filter, and get_multiplex))
+
+find_acorn <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin){
+  get_primer_candidates(primer, shift)
+  get_filter(df, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)
+  get_multiplex(df, Heterodimer_tm, top)
+}
+
+# you can run this or you can break it down above (or even go to the components of the get_primer_candidates, get_filter, and get_multiplex functions from the running range)
+find_acorn(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin)
