@@ -880,8 +880,8 @@ hairpin <- 45
 # everything all together (works on the specific level, but not below; go to 747-866 and that code should work. Simply run the code establishing the variables above and then run the code embedded in the functions (get_primer_candidates, get_filter, and get_multiplex))
 
 find_acorn <- function(primer, shift, desired_tm, diff, Heterodimer_tm, Homodimer, top, hairpin){
-  get_primer_candidates(primer, shift)
-  get_filter(df, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)
+  df <- get_primer_candidates(primer, shift)
+  df <- get_filter(df, desired_tm, diff, Heterodimer_tm, Homodimer, hairpin)
   get_multiplex(df, Heterodimer_tm, top)
 }
 
