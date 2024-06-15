@@ -35,30 +35,8 @@ library(primer3)
 #require("shinycssloaders")
 #require("shinyWidgets")
 
-#source("functions.R")
-
 #options(repos = BiocManager::repositories())
 #options(scipen = 999)
-
-# RIA FUNCTIONS/////////////////
-
-generate_reverse_primers <- function(sequence, primer_length = 20, shift = 1) {
-  # Reverse complement the sequence
-  reverse_sequence <- reverse_complement(sequence)
-
-  # Initialize vector to store reverse primers
-  reverse_primers <- character()
-
-  # Iterate over the sequence with the specified shift
-  for (i in seq(1, nchar(reverse_sequence) - primer_length + 1, by = shift)) {
-    # Extract primer of specified length
-    primer <- substr(reverse_sequence, i, i + primer_length - 1)
-    # Add primer to vector
-    reverse_primers <- c(reverse_primers, primer)
-  }
-
-  return(reverse_primers)
-}
 
 # BACKING FUNCTIONS/////////////
 
@@ -180,40 +158,32 @@ get_endpoints <- function(lst, current_name = "", parent_names = character()) {
         nested_name <- names(lst)[i]
         nested_value <- lst[[i]]
 
+        nested_current_name <- paste(current_name, nested_name, sep = "/")
+        nested_parent_names <- c(parent_names, current_name)
+
         if (is.list(nested_value)) {
-          nested_endpoints <- get_endpoints(
-            nested_value,
-            paste(current_name, nested_name, sep = "/"),
-            c(parent_names, current_name)
-          )
+          nested_endpoints <- get_endpoints(nested_value, nested_current_name, nested_parent_names)
           endpoints <- c(endpoints, nested_endpoints)
         } else {
-          endpoint <- list(
-            endpoint = nested_name,
-            parents = c(parent_names, current_name)
-          )
+          endpoint <- list(endpoint = nested_name, parents = nested_parent_names)
           endpoints <- c(endpoints, list(endpoint))
         }
       }
     } else {
-      endpoint <- list(
-        endpoint = current_name,
-        parents = parent_names
-      )
+      endpoint <- list(endpoint = current_name, parents = parent_names)
       endpoints <- c(endpoints, list(endpoint))
     }
   } else {
-    endpoint <- list(
-      endpoint = current_name,
-      parents = parent_names
-    )
+    endpoint <- list(endpoint = current_name, parents = parent_names)
     endpoints <- c(endpoints, list(endpoint))
   }
+
   return(endpoints)
 }
 
 
-# A function tha cleans
+
+# A function that cleans
 clean_endpoints <- function(endpoints){
   for (i in 1:length(endpoints)){
     endpoints[[i]]$parents <- endpoints[[i]]$parents[-1]
@@ -229,39 +199,31 @@ clean_endpoints <- function(endpoints){
 
 
 # find the bad nodes
-compute_bad_nodes <- function(endpoints, threshold){
-  blacklist <- list()
-
-  for (i in 1:length(endpoints)){
-    result = 0
-    for (j in 1:length(endpoints[[i]]$parents)){
-      result = result + (calculate_dimer(endpoints[[i]]$endpoint,
-                                         endpoints[[i]]$parents[j])$temp > threshold)
-      # print(calculate_dimer(endpoints[[i]]$endpoint, endpoints[[i]]$parents[j])$temp)
+compute_bad_nodes <- function(endpoints, threshold) {
+  bad_nodes <- list()
+  for (i in seq_along(endpoints)) {
+    endpoint <- endpoints[[i]]
+    result <- sum(sapply(endpoint$parents, function(parent) calculate_dimer(endpoint$endpoint, parent)$temp > threshold))
+    if (result > 0) {
+      bad_nodes <- c(bad_nodes, list(endpoint))
     }
-    blacklist <- c(blacklist, result)
   }
-
-  bad_nodes = endpoints[blacklist == 1]
   return(bad_nodes)
 }
+
 
 
 ### Remove unqualafied nods from the OG df
 remove_list <- function(lst, path) {
   if (length(path) == 1) {
-    if (is.list(lst) && path[[1]] %in% names(lst)) {
-      lst[[path[[1]]]] <- NULL
-    }
+    lst[[path[1]]] <- NULL
   } else {
-    if (is.list(lst) && path[[1]] %in% names(lst)) {
-      lst[[path[[1]]]] <- remove_list(lst[[path[[1]]]], path[-1])
-      if (is.list(lst[[path[[1]]]]) && length(lst[[path[[1]]]]) == 0 && !any(names(lst[[path[[1]]]]))) {
-        lst[[path[[1]]]] <- NULL
-      }
+    lst[[path[1]]] <- remove_list(lst[[path[1]]], path[-1])
+    if (is.list(lst[[path[1]]]) && length(lst[[path[1]]]) == 0) {
+      lst[[path[1]]] <- NULL
     }
   }
-  lst
+  return(lst)
 }
 
 ## remove the trunk
@@ -275,9 +237,10 @@ remove_empty_lists <- function(lst) {
 
 
 ### Remove based on index
-Iterate_remove <- function(level3,bad_nodes){
-  for (i in 1:length(bad_nodes)){
-    level3 = remove_list(level3, c(bad_nodes[[i]]$parents, bad_nodes[[i]]$endpoint))
+Iterate_remove <- function(level3, bad_nodes) {
+  for (bad_node in bad_nodes) {
+    path <- c(bad_node$parents, bad_node$endpoint)
+    level3 <- remove_list(level3, path)
   }
   return(level3)
 }
@@ -573,7 +536,7 @@ extract_top_n <- function(nested_list, n) {
   return(modified_list)
 }
 
-# This handle what part of the tree we want to show
+# This handles what part of the tree we want to show
 get_display_tree <- function(level3, keep){
   endpoints <- get_endpoints(level3)
 
@@ -583,7 +546,9 @@ get_display_tree <- function(level3, keep){
 
   display_tree <- list()
   for (i in 1:keep){
+    #if (!is.na(endpoints[[i]])) {
     display_tree <- c(display_tree, list(unlist(endpoints[[i]])))
+    #}
   }
 
   display_tree <- data.frame(display_tree)
@@ -849,14 +814,14 @@ get_multiplex <- function(df,
 
 
 
-  df_rm <- df %>%
+  df_rm <- df_rm %>%
     group_by(snpID) %>%
     filter(substrings_count == max(substrings_count))
 
   print(df_rm)
 
 
-  level5 <- soulofmultiplex(df_rm, Heterodimer_tm) # this is where I'm stuck
+  level5 <- soulofmultiplex(df, Heterodimer_tm) # ? stops running
   print(level5)
 
 
@@ -865,10 +830,14 @@ get_multiplex <- function(df,
   return(level5_with_tm_result)
 }
 
+
 # END OF RUNNING RANGE
 
 # establish the variables below before running any functions further in the script!
 primer = "rs9462492, rs58318008, rs1421085, rs9939609, rs1121980"
+
+primer = "rs9462492, rs58318008, rs1421085, rs9939609, rs1121980"
+
 shift = 100
 desired_tm = 64
 diff = 3

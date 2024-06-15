@@ -1,3 +1,6 @@
+library(tidyr)
+library(tibble)
+
 library(rprimer)
 #library(Biostrings)
 library(htmltools)
@@ -33,30 +36,8 @@ library(primer3)
 #require("shinycssloaders")
 #require("shinyWidgets")
 
-#source("functions.R")
-
 #options(repos = BiocManager::repositories())
 #options(scipen = 999)
-
-# RIA FUNCTIONS/////////////////
-
-generate_reverse_primers <- function(sequence, primer_length = 20, shift = 1) {
-  # Reverse complement the sequence
-  reverse_sequence <- reverse_complement(sequence)
-
-  # Initialize vector to store reverse primers
-  reverse_primers <- character()
-
-  # Iterate over the sequence with the specified shift
-  for (i in seq(1, nchar(reverse_sequence) - primer_length + 1, by = shift)) {
-    # Extract primer of specified length
-    primer <- substr(reverse_sequence, i, i + primer_length - 1)
-    # Add primer to vector
-    reverse_primers <- c(reverse_primers, primer)
-  }
-
-  return(reverse_primers)
-}
 
 # BACKING FUNCTIONS/////////////
 
@@ -178,40 +159,32 @@ get_endpoints <- function(lst, current_name = "", parent_names = character()) {
         nested_name <- names(lst)[i]
         nested_value <- lst[[i]]
 
+        nested_current_name <- paste(current_name, nested_name, sep = "/")
+        nested_parent_names <- c(parent_names, current_name)
+
         if (is.list(nested_value)) {
-          nested_endpoints <- get_endpoints(
-            nested_value,
-            paste(current_name, nested_name, sep = "/"),
-            c(parent_names, current_name)
-          )
+          nested_endpoints <- get_endpoints(nested_value, nested_current_name, nested_parent_names)
           endpoints <- c(endpoints, nested_endpoints)
         } else {
-          endpoint <- list(
-            endpoint = nested_name,
-            parents = c(parent_names, current_name)
-          )
+          endpoint <- list(endpoint = nested_name, parents = nested_parent_names)
           endpoints <- c(endpoints, list(endpoint))
         }
       }
     } else {
-      endpoint <- list(
-        endpoint = current_name,
-        parents = parent_names
-      )
+      endpoint <- list(endpoint = current_name, parents = parent_names)
       endpoints <- c(endpoints, list(endpoint))
     }
   } else {
-    endpoint <- list(
-      endpoint = current_name,
-      parents = parent_names
-    )
+    endpoint <- list(endpoint = current_name, parents = parent_names)
     endpoints <- c(endpoints, list(endpoint))
   }
+
   return(endpoints)
 }
 
 
-# A function tha cleans
+
+# A function that cleans
 clean_endpoints <- function(endpoints){
   for (i in 1:length(endpoints)){
     endpoints[[i]]$parents <- endpoints[[i]]$parents[-1]
@@ -227,39 +200,31 @@ clean_endpoints <- function(endpoints){
 
 
 # find the bad nodes
-compute_bad_nodes <- function(endpoints, threshold){
-  blacklist <- list()
-
-  for (i in 1:length(endpoints)){
-    result = 0
-    for (j in 1:length(endpoints[[i]]$parents)){
-      result = result + (calculate_dimer(endpoints[[i]]$endpoint,
-                                         endpoints[[i]]$parents[j])$temp > threshold)
-      # print(calculate_dimer(endpoints[[i]]$endpoint, endpoints[[i]]$parents[j])$temp)
+compute_bad_nodes <- function(endpoints, threshold) {
+  bad_nodes <- list()
+  for (i in seq_along(endpoints)) {
+    endpoint <- endpoints[[i]]
+    result <- sum(sapply(endpoint$parents, function(parent) calculate_dimer(endpoint$endpoint, parent)$temp > threshold))
+    if (result > 0) {
+      bad_nodes <- c(bad_nodes, list(endpoint))
     }
-    blacklist <- c(blacklist, result)
   }
-
-  bad_nodes = endpoints[blacklist == 1]
   return(bad_nodes)
 }
+
 
 
 ### Remove unqualafied nods from the OG df
 remove_list <- function(lst, path) {
   if (length(path) == 1) {
-    if (is.list(lst) && path[[1]] %in% names(lst)) {
-      lst[[path[[1]]]] <- NULL
-    }
+    lst[[path[1]]] <- NULL
   } else {
-    if (is.list(lst) && path[[1]] %in% names(lst)) {
-      lst[[path[[1]]]] <- remove_list(lst[[path[[1]]]], path[-1])
-      if (is.list(lst[[path[[1]]]]) && length(lst[[path[[1]]]]) == 0 && !any(names(lst[[path[[1]]]]))) {
-        lst[[path[[1]]]] <- NULL
-      }
+    lst[[path[1]]] <- remove_list(lst[[path[1]]], path[-1])
+    if (is.list(lst[[path[1]]]) && length(lst[[path[1]]]) == 0) {
+      lst[[path[1]]] <- NULL
     }
   }
-  lst
+  return(lst)
 }
 
 ## remove the trunk
@@ -273,9 +238,10 @@ remove_empty_lists <- function(lst) {
 
 
 ### Remove based on index
-Iterate_remove <- function(level3,bad_nodes){
-  for (i in 1:length(bad_nodes)){
-    level3 = remove_list(level3, c(bad_nodes[[i]]$parents, bad_nodes[[i]]$endpoint))
+Iterate_remove <- function(level3, bad_nodes) {
+  for (bad_node in bad_nodes) {
+    path <- c(bad_node$parents, bad_node$endpoint)
+    level3 <- remove_list(level3, path)
   }
   return(level3)
 }
@@ -571,7 +537,7 @@ extract_top_n <- function(nested_list, n) {
   return(modified_list)
 }
 
-# This handle what part of the tree we want to show
+# This handles what part of the tree we want to show
 get_display_tree <- function(level3, keep){
   endpoints <- get_endpoints(level3)
 
@@ -804,11 +770,190 @@ get_primer_candidates <- function(primer,
                            shift)
   df
 
-  print("Primer generated")
+  print("Primers generated")
+  return(df)
+}
+
+get_self_filter <- function(df) {
+
+  print("Reformatting data table")
+
+  # Pivot longer to combine 'substrings' and 'faraway' into 'source' and 'primers'
+  self_df <- df %>%
+    pivot_longer(
+      cols = c("substrings", "faraway"),
+      names_to = "source",
+      values_to = "primers"
+    )
+
+  # Unnesting to handle list-columns if necessary (depending on your data structure)
+  self_df <- self_df %>%
+    unnest(cols = primers)
+
+  # Collapse list elements in 'primers' column to a single string if necessary
+  self_df$primers <- sapply(self_df$primers, function(x) {
+    if (is.list(x)) paste(x, collapse = ", ") else x
+  })
+
+  print("Calculating hairpins, self dimers, and temps")
+
+  # Calculate and mutate the hairpin, selfdimer, and temp columns
+  self_df <- self_df %>%
+    mutate(
+      hairpin = calculate_hairpin(primers)$dg * 0.004184,
+      selfdimer = calculate_homodimer(primers)$dg * 0.004184,
+      temp = calculate_tm(primers),
+      # Replace NA values with Inf to handle them as large values in sorting
+      hairpin = ifelse(is.na(hairpin), Inf, hairpin),
+      selfdimer = ifelse(is.na(selfdimer), Inf, selfdimer)
+    )
+
+  print("Filtering temps")
+
+  # Filter based on temperature range
+  self_df <- self_df %>%
+    filter(temp > 45 & temp < 70)
+
+  print("Taking top ten per group")
+
+  # Group by the specified columns, arrange, and select the top 10 rows
+  self_df <- self_df %>%
+    group_by(snpID, snp_character, direction, source) %>%
+    arrange(desc(selfdimer), desc(hairpin)) %>%
+    filter(hairpin > -7,
+           selfdimer > -7) %>%
+    #slice_head(n = 10) %>%
+    ungroup() %>%
+    mutate(source = recode(source,
+                           "substrings" = "forward",
+                           "faraway" = "reverse")) %>%
+    arrange(snpID, snp_character, direction, source)
+  df <- self_df
+  df
+  return(df)
+}
+
+# Example of how to call this function (assuming df is your data frame)
+# result_df <- get_self_filter(df)
+
+
+get_cross_filter <- function(df){
+
+  print("Generating matches")
+  forward_df <- filter(df, source == "forward")
+  reverse_df <- filter(df, source == "reverse")
+
+  combined_df <- forward_df %>%
+    inner_join(reverse_df, by = c("snpID", "snp_character", "direction"), relationship = "many-to-many") %>%
+    arrange(snpID, snp_character, direction) %>%
+    select(-source.x, -source.y) %>%
+    rename(forward_primer = primers.x,
+           forward_hairpin = hairpin.x,
+           forward_selfdimer = selfdimer.x,
+           forward_temp = temp.x,
+           reverse_primer = primers.y,
+           reverse_hairpin = hairpin.y,
+           reverse_selfdimer = selfdimer.y,
+           reverse_temp = temp.y)
+
+  print("Filtering matches")
+  filtered_combined <- combined_df %>%
+    filter(abs(forward_temp - reverse_temp) <= 1) %>%
+    mutate(heterodimer = calculate_dimer(forward_primer, reverse_primer)$dg * 0.004184) %>%
+    filter(heterodimer > -7)
+
+  df <- filtered_combined
+  df
   return(df)
 }
 
 
+df <- get_primer_candidates(primer, shift)
+df <- get_self_filter(df)
+df <- get_cross_filter(df)
+
+
+
+get_complex_filter <- function(df){
+
+  unique_groups <- df %>% distinct(snpID, snp_character)
+
+  match_results <- vector("logical", nrow(df))
+
+  print("Filtering for temps between all pairs")
+
+  # Assuming unique_groups is correctly defined
+
+  # Initialize an empty vector to store indices of rows to delete
+  rows_to_delete <- numeric(0)
+
+  # Iterate over each unique group
+  for (group_index in 1:nrow(unique_groups)) {
+    # Get the current group details
+    current_group <- unique_groups[group_index, ]
+
+    # Filter the dataframe for the current group
+    group_data <- df %>%
+      filter(snpID == current_group$snpID, snp_character == current_group$snp_character)
+
+    # Filter the dataframe for all other rows (excluding current group)
+    other_data <- df %>%
+      filter(!(snpID == current_group$snpID & snp_character == current_group$snp_character))
+
+    # Iterate over each row in other_data
+    for (other_index in 1:nrow(other_data)) {
+      match_found <- FALSE
+
+      # Compare other_data row with each row in group_data
+      for (group_index in 1:nrow(group_data)) {
+        values <- c(group_data$forward_temp[group_index], group_data$reverse_temp[group_index],
+                    other_data$forward_temp[other_index], other_data$reverse_temp[other_index])
+
+        differences <- abs(diff(values))
+
+        hets <- c((calculate_dimer(group_data$forward_primer[group_index], other_data$forward_primer[other_index])$dg * 0.004184), (calculate_dimer(group_data$forward_primer[group_index], other_data$reverse_primer[other_index])$dg * 0.004184), (calculate_dimer(group_data$reverse_primer[group_index], other_data$forward_primer[other_index])$dg * 0.004184), (calculate_dimer(group_data$reverse_primer[group_index], other_data$reverse_primer[other_index])$dg * 0.004184))
+        hets <- lapply(hets, function(x) {
+          replace(x, is.na(x), Inf)
+        })
+
+
+        if (all(differences < 1)) {
+          if (all(hets > -7)) {
+            match_found <- TRUE
+            break
+          }
+          break
+        }
+      }
+
+      # If no match was found, mark row index for deletion
+      if (!match_found) {
+        rows_to_delete <- c(rows_to_delete, which(df$forward_primer == other_data$forward_primer[other_index] &
+                                                    df$reverse_primer == other_data$reverse_primer[other_index]))
+      }
+    }
+
+    # Delete rows from df based on rows_to_delete before next iteration
+    if (length(rows_to_delete) > 0) {
+      df <- df[-rows_to_delete, ]
+
+      # Reset rows_to_delete for next iteration
+      rows_to_delete <- numeric(0)
+    }
+  }
+
+  df
+  return(df)
+    # Store the results in the list
+    #comparison_results[[paste(current_group$snpID, current_group$snp_character, sep = "_")]] <- mean_diff
+}
+
+get_final_candidates <- function(df) {
+
+}
+
+
+#//////////////////////////////ARCHARLIE FUNCTIONS
 
 get_filter <- function(df, # primer
                        desired_tm,
@@ -864,4 +1009,6 @@ get_multiplex <- function(df,
 
   return(level5_with_tm_result)
 }
+
+
 
