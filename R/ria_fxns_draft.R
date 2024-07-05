@@ -4,7 +4,7 @@ library(tibble)
 library(rprimer)
 #library(Biostrings)
 library(htmltools)
-library(kableExtra)
+#library(kableExtra)
 
 # Data processing
 library(DT)
@@ -820,9 +820,9 @@ get_self_filter <- function(df) {
   self_df <- self_df %>%
     group_by(snpID, snp_character, direction, source) %>%
     arrange(desc(selfdimer), desc(hairpin)) %>%
-    filter(hairpin > -7,
-           selfdimer > -7) %>%
-    #slice_head(n = 10) %>%
+    #filter(hairpin > -7,
+    #       selfdimer > -7) %>%
+    slice_head(n = 10) %>%
     ungroup() %>%
     mutate(source = recode(source,
                            "substrings" = "forward",
@@ -843,6 +843,7 @@ get_cross_filter <- function(df){
   forward_df <- filter(df, source == "forward")
   reverse_df <- filter(df, source == "reverse")
 
+  ## THIS IS WHERE DATA RUNS INTO A BOTTLENECK!
   combined_df <- forward_df %>%
     inner_join(reverse_df, by = c("snpID", "snp_character", "direction"), relationship = "many-to-many") %>%
     arrange(snpID, snp_character, direction) %>%
@@ -859,10 +860,15 @@ get_cross_filter <- function(df){
   print("Filtering matches")
   filtered_combined <- combined_df %>%
     filter(abs(forward_temp - reverse_temp) <= 1) %>%
-    mutate(heterodimer = calculate_dimer(forward_primer, reverse_primer)$dg * 0.004184) %>%
-    filter(heterodimer > -7)
+    mutate(heterodimer = calculate_dimer(forward_primer, reverse_primer)$dg * 0.004184)
+    #filter(heterodimer > -7)
 
   df <- filtered_combined
+  # if you want to take top 50
+  df <- df %>%
+    group_by(snpID, snp_character) %>%
+    arrange(desc(heterodimer)) %>%
+    slice_head(n = 10)
   df
   return(df)
 }
@@ -872,85 +878,97 @@ df <- get_primer_candidates(primer, shift)
 df <- get_self_filter(df)
 df <- get_cross_filter(df)
 
-
-
 get_complex_filter <- function(df){
 
   unique_groups <- df %>% distinct(snpID, snp_character)
 
-  match_results <- vector("logical", nrow(df))
+  #match <- vector("logical", nrow(df))
 
   print("Filtering for temps between all pairs")
 
-  # Assuming unique_groups is correctly defined
-
-  # Initialize an empty vector to store indices of rows to delete
-  rows_to_delete <- numeric(0)
+  # add column for tracking matches
+  df$match <- ""
 
   # Iterate over each unique group
-  for (group_index in 1:nrow(unique_groups)) {
-    # Get the current group details
-    current_group <- unique_groups[group_index, ]
+  for (first_index in 1:nrow(df)) {
 
-    # Filter the dataframe for the current group
-    group_data <- df %>%
-      filter(snpID == current_group$snpID, snp_character == current_group$snp_character)
+    print(paste0(first_index, " out of ", nrow(df), " rows"))
 
-    # Filter the dataframe for all other rows (excluding current group)
-    other_data <- df %>%
-      filter(!(snpID == current_group$snpID & snp_character == current_group$snp_character))
-
-    # Iterate over each row in other_data
-    for (other_index in 1:nrow(other_data)) {
-      match_found <- FALSE
-
-      # Compare other_data row with each row in group_data
-      for (group_index in 1:nrow(group_data)) {
-        values <- c(group_data$forward_temp[group_index], group_data$reverse_temp[group_index],
-                    other_data$forward_temp[other_index], other_data$reverse_temp[other_index])
-
+    for (second_index in 1:nrow(df)) {
+      if (df$snpID[first_index] == df$snpID[second_index] & df$snp_character[first_index] == df$snp_character[second_index]) {
+        next
+        }
+      else {
+        values <- c(df$forward_temp[first_index], df$reverse_temp[first_index],
+                    df$forward_temp[second_index], df$reverse_temp[second_index])
         differences <- abs(diff(values))
-
-        hets <- c((calculate_dimer(group_data$forward_primer[group_index], other_data$forward_primer[other_index])$dg * 0.004184), (calculate_dimer(group_data$forward_primer[group_index], other_data$reverse_primer[other_index])$dg * 0.004184), (calculate_dimer(group_data$reverse_primer[group_index], other_data$forward_primer[other_index])$dg * 0.004184), (calculate_dimer(group_data$reverse_primer[group_index], other_data$reverse_primer[other_index])$dg * 0.004184))
-        hets <- lapply(hets, function(x) {
-          replace(x, is.na(x), Inf)
-        })
-
-
-        if (all(differences < 1)) {
-          if (all(hets > -7)) {
-            match_found <- TRUE
-            break
-          }
-          break
+        if (max(differences < 1)) {
+          df$match[second_index] <- TRUE
+        }
         }
       }
+  }
 
-      # If no match was found, mark row index for deletion
-      if (!match_found) {
-        rows_to_delete <- c(rows_to_delete, which(df$forward_primer == other_data$forward_primer[other_index] &
-                                                    df$reverse_primer == other_data$reverse_primer[other_index]))
+  df <- filter(df, match == TRUE)
+  df$match <- ""
+
+  for (first_index in 1:nrow(df)) {
+
+    print(paste0(first_index, " out of ", nrow(df), " rows"))
+
+    for (second_index in 1:nrow(df)) {
+      if (df$snpID[first_index] == df$snpID[second_index] & df$snp_character[first_index] == df$snp_character[second_index]) {
+        next
       }
-    }
+      else {
 
-    # Delete rows from df based on rows_to_delete before next iteration
-    if (length(rows_to_delete) > 0) {
-      df <- df[-rows_to_delete, ]
+        hets <- c((calculate_dimer(df$forward_primer[first_index], df$forward_primer[second_index])$dg * 0.004184), (calculate_dimer(df$forward_primer[first_index], df$reverse_primer[second_index])$dg * 0.004184), (calculate_dimer(df$reverse_primer[first_index], df$forward_primer[second_index])$dg * 0.004184), (calculate_dimer(df$reverse_primer[first_index], df$reverse_primer[second_index])$dg * 0.004184))
 
-      # Reset rows_to_delete for next iteration
-      rows_to_delete <- numeric(0)
+        if (min(hets > -10)) {
+          df$match[second_index] <- TRUE
+        }
+      }
     }
   }
 
+  df <- filter(df, match == TRUE)
   df
   return(df)
-    # Store the results in the list
+     #Store the results in the list
     #comparison_results[[paste(current_group$snpID, current_group$snp_character, sep = "_")]] <- mean_diff
 }
 
-get_final_candidates <- function(df) {
+generate_final_primers <- function(df){
+
+  df$groupID <- paste(df$snpID, df$snp_character, sep="-")
+
+  #grouped_data <- split(df, df$groupID)
+
+  unique_groups <- unique(df$groupID)
+
+  # Function to filter rows for a specific group
+  filter_group <- function(group) {
+    df %>% filter(groupID == group)
+  }
+
+  # Use crossing to generate all combinations
+  combinations <- crossing(
+    lapply(unique_groups, filter_group)
+  )
+
+  # Flatten the list of combinations into a single data frame
+  combined_results <- combinations %>%
+    rowwise() %>%
+    mutate(
+      combined = list(c_across(everything()))
+    ) %>%
+    ungroup() %>%
+    unnest_wider(combined)
+
+
 
 }
+
 
 
 #//////////////////////////////ARCHARLIE FUNCTIONS
