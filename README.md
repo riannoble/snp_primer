@@ -1,6 +1,10 @@
 # acornfinder
 
-This is an extension of Archarlie's Shiny App that creates SNP-sensitive primers and probes. This versions attempts to condense it into a package.
+This is an extension of Archarlie's Shiny App that creates SNP-sensitive primers and probes (no probes as of July 2024). This versions attempts to condense it into a package.
+
+## FOR FUTURE PROGRAMMERS!
+
+-talk to Bro. Terribilini throughout your 
 
 ### Installation
 
@@ -12,30 +16,6 @@ install_github("rianoble/acornfinder")
 library(acornfinder)
 
 snpmart <- useMart("ENSEMBL_MART_SNP", dataset = "hsapiens_snp")
-
-
-## Supplemental Installation
-
-If you cannot use the package correctly from just the code above, paste the code below (contains packages) as well. You may need troubleshooting and installation help from a data scientist or bio/statistician (ex. Ria, Brother Terribilini).
-
-require("rprimer")
-require("htmltools")
-require("kableExtra")
-require("DT")
-require("dplyr")
-require("tidyverse")
-require("stringi")
-require("stringr")
-require("mosaic")
-require("purrr")
-require("ggplot2")
-require("hexbin")
-require("patchwork")
-require("plotly")
-require("BiocManager")
-require("biomaRt")
-require("spgs")
-require("primer3")
 
 
 ### findacorn function
@@ -65,7 +45,7 @@ Attempts to answer all questions in one function. Produces a pop-out output.
 -melting temps should be under 1-2 degrees difference
 -paste in entire sequence retrieved by biomart in r into primer blast (~1000 bases of seq, 500 before, 500 after)
 
-## Non-Essential Functions
+## Non-Essential Functions (not complete)
 
 ### mart_api function
 

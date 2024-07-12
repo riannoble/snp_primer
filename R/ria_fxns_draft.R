@@ -873,11 +873,6 @@ get_cross_filter <- function(df){
   return(df)
 }
 
-
-df <- get_primer_candidates(primer, shift)
-df <- get_self_filter(df)
-df <- get_cross_filter(df)
-
 get_complex_filter <- function(df){
 
   unique_groups <- df %>% distinct(snpID, snp_character)
@@ -932,101 +927,46 @@ get_complex_filter <- function(df){
   }
 
   df <- filter(df, match == TRUE)
+  df$groupID <- paste(df$snpID, df$snp_character, sep="-")
   df
   return(df)
      #Store the results in the list
     #comparison_results[[paste(current_group$snpID, current_group$snp_character, sep = "_")]] <- mean_diff
 }
 
-generate_final_primers <- function(df){
+df <- get_primer_candidates(primer, shift)
+df <- get_self_filter(df)
+df <- get_cross_filter(df)
+df <- get_complex_filter(df)
+split_dfs <- split(df, df$groupID)
 
-  df$groupID <- paste(df$snpID, df$snp_character, sep="-")
+#generate_final_primers <- function(df){
+
+#  df$groupID <- paste(df$snpID, df$snp_character, sep="-")
 
   #grouped_data <- split(df, df$groupID)
 
-  unique_groups <- unique(df$groupID)
+#  unique_groups <- unique(df$groupID)
 
   # Function to filter rows for a specific group
-  filter_group <- function(group) {
-    df %>% filter(groupID == group)
-  }
+#  filter_group <- function(group) {
+#    df %>% filter(groupID == group)
+#  }
 
   # Use crossing to generate all combinations
-  combinations <- crossing(
-    lapply(unique_groups, filter_group)
-  )
+#  combinations <- crossing(
+#    lapply(unique_groups, filter_group)
+#  )
 
   # Flatten the list of combinations into a single data frame
-  combined_results <- combinations %>%
-    rowwise() %>%
-    mutate(
-      combined = list(c_across(everything()))
-    ) %>%
-    ungroup() %>%
-    unnest_wider(combined)
+#  combined_results <- combinations %>%
+#    rowwise() %>%
+#    mutate(
+#      combined = list(c_across(everything()))
+#    ) %>%
+#    ungroup() %>%
+#    unnest_wider(combined)
 
 
 
-}
-
-
-
-#//////////////////////////////ARCHARLIE FUNCTIONS
-
-get_filter <- function(df, # primer
-                       desired_tm,
-                       diff, # max diff in tm
-                       Heterodimer_tm,
-                       Homodimer,
-                       hairpin) {
-
-  print("R get filter activated")
-  # Applied filters before multiplexing
-  df <- stage1_filter(df, desired_tm, diff, Homodimer, hairpin)
-  print(df)
-
-  print("Filtered")
-
-
-  # Count how many candidates there are for each primer group
-  df <- df %>%
-    mutate(substrings_count = lengths(substrings),
-           faraway_count = lengths(faraway)) %>%
-    relocate(snpID, substrings_count, faraway_count, everything()) # Moves a block of columns
-
-  # Display the updated nested tibble
-  return(df)
-}
-
-get_multiplex <- function(df,
-                          Heterodimer_tm,
-                          top){
-
-  print("Tree search") # relationship measure?
-  df
-  # Keep only certain amount of candidates
-  df[[5]] <- extract_top_n(df[[5]], 2) # narrow down substrings column to 5?
-  df[[6]] <- extract_top_n(df[[6]], 2) # narrow down faraway column to 5?
-  # Technical debt
-  df_rm <- df[!duplicated(df$snpID), ] # ? eliminates all RIGHT direction
-
-
-
-  df_rm <- df_rm %>%
-    group_by(snpID) %>%
-    filter(substrings_count == max(substrings_count))
-
-  print(df_rm)
-
-
-  level5 <- soulofmultiplex(df_rm, Heterodimer_tm) # ? stops running
-  print(level5)
-
-
-  level5_with_tm_result <- get_tm_for_all_primers(level5) # What is this fxn??
-
-  return(level5_with_tm_result)
-}
-
-
-
+#}
