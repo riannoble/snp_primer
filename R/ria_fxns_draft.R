@@ -818,12 +818,12 @@ get_self_filter <- function(df) {
 
   # Group by the specified columns, arrange, and select the top 10 rows
   self_df <- self_df %>%
-    group_by(snpID, snp_character, direction, source) %>%
-    arrange(desc(selfdimer), desc(hairpin)) %>%
-    #filter(hairpin > -7,
-    #       selfdimer > -7) %>%
-    slice_head(n = 10) %>%
-    ungroup() %>%
+    #group_by(snpID, snp_character, direction, source) %>%
+    #arrange(desc(selfdimer), desc(hairpin)) %>%
+    filter(hairpin > -7,
+           selfdimer > -7) %>%
+    #slice_head(n = 10) %>%
+    #ungroup() %>%
     mutate(source = recode(source,
                            "substrings" = "forward",
                            "faraway" = "reverse")) %>%
@@ -866,9 +866,10 @@ get_cross_filter <- function(df){
   df <- filtered_combined
   # if you want to take top 50
   df <- df %>%
-    group_by(snpID, snp_character) %>%
-    arrange(desc(heterodimer)) %>%
-    slice_head(n = 10)
+    filter(heterodimer > -7)
+    #group_by(snpID, snp_character) %>%
+    #arrange(desc(heterodimer)) %>%
+    #slice_head(n = 10)
   df
   return(df)
 }
@@ -919,7 +920,7 @@ get_complex_filter <- function(df){
 
         hets <- c((calculate_dimer(df$forward_primer[first_index], df$forward_primer[second_index])$dg * 0.004184), (calculate_dimer(df$forward_primer[first_index], df$reverse_primer[second_index])$dg * 0.004184), (calculate_dimer(df$reverse_primer[first_index], df$forward_primer[second_index])$dg * 0.004184), (calculate_dimer(df$reverse_primer[first_index], df$reverse_primer[second_index])$dg * 0.004184))
 
-        if (min(hets > -10)) {
+        if (min(hets > -7)) {
           df$match[second_index] <- TRUE
         }
       }
@@ -934,39 +935,80 @@ get_complex_filter <- function(df){
     #comparison_results[[paste(current_group$snpID, current_group$snp_character, sep = "_")]] <- mean_diff
 }
 
-df <- get_primer_candidates(primer, shift)
-df <- get_self_filter(df)
-df <- get_cross_filter(df)
-df <- get_complex_filter(df)
-split_dfs <- split(df, df$groupID)
+#df <- get_primer_candidates(primer, shift)
+#df <- get_self_filter(df)
+#df <- get_cross_filter(df)
+#df <- get_complex_filter(df)
 
-#generate_final_primers <- function(df){
+get_final_list <- function(df){
 
-#  df$groupID <- paste(df$snpID, df$snp_character, sep="-")
+  df$groupID <- paste(df$snpID, df$snp_character, sep="-")
+  split_dfs <- split(df, df$groupID)
 
-  #grouped_data <- split(df, df$groupID)
+  split_dfs <- lapply(split_dfs, function(x) {
+    x[ , !(names(x) %in% c("snpID", "snp_character", "direction", "match"))]
+  })
 
-#  unique_groups <- unique(df$groupID)
+  # Function to generate combinations and sample 100 rows
+  generate_combinations <- function(list_of_dfs) {
+    num_dfs <- length(list_of_dfs)
 
-  # Function to filter rows for a specific group
-#  filter_group <- function(group) {
-#    df %>% filter(groupID == group)
-#  }
+    # Generate all possible combinations of row indices
+    comb_indices <- expand.grid(lapply(list_of_dfs, function(x) 1:nrow(x)))
 
-  # Use crossing to generate all combinations
-#  combinations <- crossing(
-#    lapply(unique_groups, filter_group)
-#  )
+    # Randomly sample 100 rows from the combinations
+    sampled_indices <- comb_indices %>%
+      slice_sample(n = min(1000, nrow(comb_indices)))
 
-  # Flatten the list of combinations into a single data frame
-#  combined_results <- combinations %>%
-#    rowwise() %>%
-#    mutate(
-#      combined = list(c_across(everything()))
-#    ) %>%
-#    ungroup() %>%
-#    unnest_wider(combined)
+    # Combine the rows from each dataframe for the sampled combinations
+    all_combinations <- do.call(rbind, lapply(1:nrow(sampled_indices), function(i) {
+      indices <- as.numeric(sampled_indices[i, ])
+      combined_row <- do.call(cbind, lapply(1:num_dfs, function(j) {
+        list_of_dfs[[j]][indices[j], , drop = FALSE]
+      }))
+      return(combined_row)
+    }))
+
+    return(all_combinations)
+  }
+
+  # Step 2: Generate combinations step-by-step, sampling 100 rows between each step
+  current_combinations <- split_dfs[[1]]
+
+  for (i in 2:length(split_dfs)) {
+    current_combinations <- generate_combinations(list(current_combinations, split_dfs[[i]]))
+  }
 
 
+  names(current_combinations) <- make.names(names(current_combinations), unique = TRUE)
 
-#}
+  temp_columns <- grep("temp", names(current_combinations), value = TRUE)
+  primer_columns <- grep("primer", names(current_combinations), value = TRUE)
+
+  # Function to calculate differences between all melting temps in a row
+  calc_temp_diffs <- function(row) {
+    temps <- unlist(row[temp_columns])
+    combn(temps, 2, function(x) abs(diff(x)))
+  }
+
+  calc_hets <- function(row) {
+    primer_seqs <- unlist(row[primer_columns])
+    combn(primer_seqs, 2, function(x) calculate_dimer(x[1], x[2])$dg * 0.004184)
+  }
+
+
+  # Add new column with the differences
+  current_combinations <- current_combinations %>%
+    rowwise() %>%
+    mutate(temp_diffs = list(calc_temp_diffs(dplyr::cur_data())),
+           hets = list(calc_hets(dplyr::cur_data())),
+           hets = list(map(hets, ~replace(.x, is.na(.x), Inf))),
+           highest_hets = max(unlist(hets), na.rm = TRUE),
+           lowest_hets = min(unlist(hets), na.rm = TRUE)) %>%
+    ungroup() %>%
+    filter(!sapply(temp_diffs, function(x) any(x > 1, na.rm = TRUE))) %>%
+    arrange(desc(lowest_hets))
+
+  return(current_combinations)
+
+}
