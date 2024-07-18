@@ -4,7 +4,11 @@ This is an extension of Archarlie's Shiny App that creates SNP-sensitive primers
 
 ## FOR FUTURE PROGRAMMERS!
 
--talk to Bro. Terribilini throughout your 
+- Main files are ria_fxns_draft and the app
+- Talk to Bro. Terribilini throughout your development of the code and app
+- Next steps are optimizing the app/code and creating a package
+- My multiplex testing primers were held on to by Bro. Terribilini so you can test the specificity of the snp-specific primer design from the code
+- Good luck on your work! If you have any questions for me, my email is rianoble@umich.edu :)
 
 ### Installation
 
