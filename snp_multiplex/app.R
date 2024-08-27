@@ -1,53 +1,64 @@
-# Load required libraries
 library(shiny)
 library(dplyr)
+library(purrr)
+library(here)
 
-# Source your functions script
+#print(getwd())
+
+#setwd(".../acornfinder.Rproj")
+
 source("C:/Users/riano/Documents/acornfinder/acornfinder/R/ria_fxns_draft.R")
 
-# Define UI for application
+# UI
 ui <- fluidPage(
-
-  # Application title
-  titlePanel("SNP Analysis App"),
-
-  # Sidebar layout with input and output definitions
+  titlePanel("Primer Analysis App"),
   sidebarLayout(
     sidebarPanel(
-      # Input for SNP ID (string)
-      textInput("primer", "Enter Primer:", value = ""),
-
-      # Input for shift (number)
-      numericInput("shift", "Enter Shift Number:", value = 0, min = 0),
-
-      # Action button to trigger calculation
-      actionButton("calculate_button", "Calculate")
+      textInput("primer", "Enter SNPs:", value = ""),
+      actionButton("run_analysis", "Run Analysis"),
+      downloadButton("download_data", "Download Results")
     ),
-
-    # Main panel for displaying output table
     mainPanel(
-      tableOutput("output_table")
+      tableOutput("results_table")
     )
   )
 )
 
-# Define server logic
-server <- function(input, output) {
+# Server
+server <- function(input, output, session) {
 
-  # Function to calculate and render output table
-  observeEvent(input$calculate_button, {
-    req(input$primer, input$shift)  # Require both inputs to be filled
+  # Reactive expression to store the dataset
+  results <- eventReactive(input$run_analysis, {
+    primer_string <- input$primer
+    shift = 100
 
-    df <- get_primer_candidates(input$primer, input$shift)
+    # Assuming the input string is used to generate a dataframe (e.g., `df`)
+    # Replace this with actual data processing logic to generate `df`
+
+    df <- get_primer_candidates(primer, shift)
     df <- get_self_filter(df)
-    df <- get_cross_filter(df)
-    output_data <- get_final_list(df)
+    new_df <- get_cross_filter(df)
+    final_combinations <- get_final_list(new_df)
 
-    output$output_table <- DT::renderDT({
-      datatable(output_data)  # Render output_data as a datatable
-    })
+    return(final_combinations)
   })
+
+  # Render the results table
+  output$results_table <- renderTable({
+    req(results())
+    head(results(), 10)  # Display the first 10 rows of the dataset
+  })
+
+  # Download handler
+  output$download_data <- downloadHandler(
+    filename = function() {
+      paste("primer_analysis_results-", Sys.Date(), ".csv", sep = "")
+    },
+    content = function(file) {
+      write.csv(results(), file, row.names = FALSE)
+    }
+  )
 }
 
-# Run the application
+# Run the app
 shinyApp(ui = ui, server = server)

@@ -935,10 +935,12 @@ get_complex_filter <- function(df){
     #comparison_results[[paste(current_group$snpID, current_group$snp_character, sep = "_")]] <- mean_diff
 }
 
+# TESTING SECTION
+
 #df <- get_primer_candidates(primer, shift)
 #df <- get_self_filter(df)
-#df <- get_cross_filter(df)
-#df <- get_complex_filter(df)
+#new_df <- get_cross_filter(df)
+#final_df <- get_final_list(new_df)
 
 get_final_list <- function(df){
 
@@ -958,7 +960,8 @@ get_final_list <- function(df){
 
     # Randomly sample 100 rows from the combinations
     sampled_indices <- comb_indices %>%
-      slice_sample(n = min(1000, nrow(comb_indices)))
+      sample_n(1000)
+      #slice_sample(n = min(1000, nrow(comb_indices)))
 
     # Combine the rows from each dataframe for the sampled combinations
     all_combinations <- do.call(rbind, lapply(1:nrow(sampled_indices), function(i) {
@@ -1006,7 +1009,8 @@ get_final_list <- function(df){
            highest_hets = max(unlist(hets), na.rm = TRUE),
            lowest_hets = min(unlist(hets), na.rm = TRUE)) %>%
     ungroup() %>%
-    filter(!sapply(temp_diffs, function(x) any(x > 1, na.rm = TRUE))) %>%
+    filter(!sapply(temp_diffs, function(x) any(x > 1, na.rm = TRUE)),
+           lowest_hets > -7) %>%
     arrange(desc(lowest_hets))
 
   return(current_combinations)

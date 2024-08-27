@@ -8,6 +8,7 @@ This is an extension of Archarlie's Shiny App that creates SNP-sensitive primers
 - Talk to Bro. Terribilini throughout your development of the code and app
 - Next steps are optimizing the app/code and creating a package
 - My multiplex testing primers were held on to by Bro. Terribilini so you can test the specificity of the snp-specific primer design from the code
+- You will need to find a better temp calculation method (check accuracy of your method with Oligo Analyzer).
 - Good luck on your work! If you have any questions for me, my email is rianoble@umich.edu :)
 
 ### Installation
@@ -35,6 +36,7 @@ primer = "rs53576, rs1815739, rs7412, rs429358, rs6152"
 primer = "rs9462492, rs58318008, rs1421085"
 primer = "rs1550576, rs17025867"
 primer = "rs9462492, rs58318008"
+primer = "rs1421085, rs9462492"
 shift = 100
 desired_tm = 64
 diff = 3
