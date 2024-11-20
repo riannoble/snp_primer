@@ -935,13 +935,6 @@ get_complex_filter <- function(df){
     #comparison_results[[paste(current_group$snpID, current_group$snp_character, sep = "_")]] <- mean_diff
 }
 
-# TESTING SECTION
-
-#df <- get_primer_candidates(primer, shift)
-#df <- get_self_filter(df)
-#new_df <- get_cross_filter(df)
-#final_df <- get_final_list(new_df)
-
 get_final_list <- function(df){
 
   df$groupID <- paste(df$snpID, df$snp_character, sep="-")

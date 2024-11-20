@@ -7,7 +7,7 @@ library(here)
 
 #setwd(".../acornfinder.Rproj")
 
-source("C:/Users/riano/Documents/acornfinder/acornfinder/R/ria_fxns_draft.R")
+source("C:/Users/riano/Documents/acornfinder/acornfinder/R/fxns_draft.R")
 
 # UI
 ui <- fluidPage(
